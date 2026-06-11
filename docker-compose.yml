@@ -1,0 +1,20 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: fulfillment-orchestrator-postgres
+    environment:
+      POSTGRES_DB: fulfillment_orchestrator
+      POSTGRES_USER: fulfillment_user
+      POSTGRES_PASSWORD: fulfillment_password
+    ports:
+      - "15432:5432"
+    volumes:
+      - fulfillment_orchestrator_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fulfillment_user -d fulfillment_orchestrator"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  fulfillment_orchestrator_postgres_data:
