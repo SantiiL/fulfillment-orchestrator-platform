@@ -1,4 +1,4 @@
-\# Fulfillment Orchestrator Platform
+# Fulfillment Orchestrator Platform
 
 
 
@@ -6,7 +6,7 @@ Senior-level Java/Spring Boot logistics fulfillment platform focused on order or
 
 
 
-\## Project Goal
+## Project Goal
 
 
 
@@ -22,27 +22,27 @@ The goal is not to build a simple CRUD application, but to demonstrate real back
 
 
 
-\- Domain modeling
+- Domain modeling
 
-\- Modular architecture
+- Modular architecture
 
-\- Event-driven communication
+- Event-driven communication
 
-\- Idempotency
+- Idempotency
 
-\- Resilience patterns
+- Resilience patterns
 
-\- Testing strategy
+- Testing strategy
 
-\- Observability
+- Observability
 
-\- Documentation
+- Documentation
 
-\- AI-assisted development workflows
+- AI-assisted development workflows
 
 
 
-\## Core Domain
+## Core Domain
 
 
 
@@ -50,59 +50,59 @@ The platform will model a simplified logistics operation:
 
 
 
-\- Sellers create orders.
+- Sellers create orders.
 
-\- Orders are assigned to fulfillment nodes.
+- Orders are assigned to fulfillment nodes.
 
-\- Fulfillment nodes have capacity, working days and operational constraints.
+- Fulfillment nodes have capacity, working days and operational constraints.
 
-\- Orders move through a controlled lifecycle.
+- Orders move through a controlled lifecycle.
 
-\- Domain events are published for relevant state changes.
+- Domain events are published for relevant state changes.
 
-\- Failures, retries and incidents are handled explicitly.
-
-
-
-\## Planned Tech Stack
+- Failures, retries and incidents are handled explicitly.
 
 
 
-\- Java 21
-
-\- Spring Boot
-
-\- Spring Data JPA
-
-\- PostgreSQL
-
-\- Kafka
-
-\- Redis
-
-\- Docker Compose
-
-\- Testcontainers
-
-\- JUnit 5
-
-\- Mockito
-
-\- OpenAPI / Swagger
-
-\- Micrometer
-
-\- OpenTelemetry
-
-\- Prometheus
-
-\- Grafana
-
-\- GitHub Actions
+## Planned Tech Stack
 
 
 
-\## Architecture Approach
+- Java 21
+
+- Spring Boot
+
+- Spring Data JPA
+
+- PostgreSQL
+
+- Kafka
+
+- Redis
+
+- Docker Compose
+
+- Testcontainers
+
+- JUnit 5
+
+- Mockito
+
+- OpenAPI / Swagger
+
+- Micrometer
+
+- OpenTelemetry
+
+- Prometheus
+
+- Grafana
+
+- GitHub Actions
+
+
+
+## Architecture Approach
 
 
 
@@ -122,13 +122,13 @@ See:
 
 
 
-\- `docs/adr/0001-use-modular-monolith-first.md`
+- `docs/adr/0001-use-modular-monolith-first.md`
 
-\- `docs/architecture/system-overview.md`
+- `docs/architecture/system-overview.md`
 
 
 
-\## AI-Assisted Engineering Workflow
+## AI-Assisted Engineering Workflow
 
 
 
@@ -140,19 +140,19 @@ AI tools may be used for:
 
 
 
-\- Feature planning
+- Feature planning
 
-\- Architecture alternatives
+- Architecture alternatives
 
-\- Refactor suggestions
+- Refactor suggestions
 
-\- Test strategy
+- Test strategy
 
-\- Documentation drafts
+- Documentation drafts
 
-\- Code review assistance
+- Code review assistance
 
-\- PR summaries
+- PR summaries
 
 
 
@@ -160,17 +160,17 @@ Human-owned decisions include:
 
 
 
-\- Architecture
+- Architecture
 
-\- Domain modeling
+- Domain modeling
 
-\- Trade-offs
+- Trade-offs
 
-\- Security boundaries
+- Security boundaries
 
-\- Final code review
+- Final code review
 
-\- Merge decisions
+- Merge decisions
 
 
 
@@ -178,7 +178,7 @@ AI usage is documented in:
 
 
 
-\- `docs/ai-engineering-log/`
+- `docs/ai-engineering-log/`
 
 
 
@@ -186,11 +186,11 @@ Reusable skills are documented in:
 
 
 
-\- `skills/`
+- `skills/`
 
 
 
-\## Current Status
+## Current Status
 
 
 
@@ -202,7 +202,7 @@ Implementation has not started yet.
 
 
 
-\## Repository Workflow
+## Repository Workflow
 
 
 
@@ -210,17 +210,17 @@ This project follows a lightweight Gitflow workflow:
 
 
 
-\- `main`: stable public version
+- `main`: stable public version
 
-\- `develop`: integration branch
+- `develop`: integration branch
 
-\- `feature/\*`: feature branches
+- `feature/\*`: feature branches
 
-\- Pull requests are required before merging into `develop`
+- Pull requests are required before merging into `develop`
 
 
 
-\## License
+## License
 
 
 
