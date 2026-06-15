@@ -21,6 +21,7 @@ import java.util.regex.Pattern;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -82,9 +83,56 @@ class OrderControllerIntegrationTest {
         assertEquals(0, orderCount);
     }
 
+    @Test
+    void retrievesExistingOrderById() throws Exception {
+        UUID sellerId = UUID.randomUUID();
+        UUID orderId = createOrder(sellerId);
+
+        mockMvc.perform(get("/api/v1/orders/{id}", orderId))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(orderId.toString()))
+                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
+                .andExpect(jsonPath("$.status").value("CREATED"));
+    }
+
+    @Test
+    void returnsNotFoundWhenOrderDoesNotExist() throws Exception {
+        UUID missingOrderId = UUID.randomUUID();
+
+        mockMvc.perform(get("/api/v1/orders/{id}", missingOrderId))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Order was not found"))
+                .andExpect(jsonPath("$.path").value("/api/v1/orders/%s".formatted(missingOrderId)))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    void returnsBadRequestWhenOrderIdIsNotAValidUuid() throws Exception {
+        mockMvc.perform(get("/api/v1/orders/{id}", "not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.code").value("INVALID_ORDER_ID"))
+                .andExpect(jsonPath("$.message").value("Order id must be a valid UUID"))
+                .andExpect(jsonPath("$.path").value("/api/v1/orders/not-a-uuid"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
     private UUID extractOrderId(String responseBody) {
         Matcher matcher = Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"").matcher(responseBody);
         assertTrue(matcher.find(), "response body should contain an id");
         return UUID.fromString(matcher.group(1));
+    }
+
+    private UUID createOrder(UUID sellerId) throws Exception {
+        MvcResult result = mockMvc.perform(post("/api/v1/orders")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"sellerId\":\"%s\"}".formatted(sellerId)))
+                .andExpect(status().isCreated())
+                .andReturn();
+
+        return extractOrderId(result.getResponse().getContentAsString());
     }
 }
