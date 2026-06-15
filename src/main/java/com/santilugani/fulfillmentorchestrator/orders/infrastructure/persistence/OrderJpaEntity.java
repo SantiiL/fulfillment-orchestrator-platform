@@ -1,7 +1,9 @@
 package com.santilugani.fulfillmentorchestrator.orders.infrastructure.persistence;
 
 import com.santilugani.fulfillmentorchestrator.orders.domain.Order;
+import com.santilugani.fulfillmentorchestrator.orders.domain.OrderId;
 import com.santilugani.fulfillmentorchestrator.orders.domain.OrderStatus;
+import com.santilugani.fulfillmentorchestrator.orders.domain.SellerId;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;
@@ -48,6 +50,10 @@ public class OrderJpaEntity implements Persistable<UUID> {
 
     public static OrderJpaEntity fromDomain(Order order) {
         return new OrderJpaEntity(order.getId().value(), order.getSellerId().value(), order.getStatus());
+    }
+
+    public Order toDomain() {
+        return Order.reconstitute(new OrderId(id), new SellerId(sellerId), status);
     }
 
     @Override

@@ -2,9 +2,11 @@ package com.santilugani.fulfillmentorchestrator.orders.infrastructure.persistenc
 
 import com.santilugani.fulfillmentorchestrator.orders.application.OrderRepository;
 import com.santilugani.fulfillmentorchestrator.orders.domain.Order;
+import com.santilugani.fulfillmentorchestrator.orders.domain.OrderId;
 import org.springframework.stereotype.Repository;
 
 import java.util.Objects;
+import java.util.Optional;
 
 @Repository
 public class JpaOrderRepositoryAdapter implements OrderRepository {
@@ -21,5 +23,11 @@ public class JpaOrderRepositoryAdapter implements OrderRepository {
     @Override
     public void save(Order order) {
         springDataOrderRepository.save(OrderJpaEntity.fromDomain(order));
+    }
+
+    @Override
+    public Optional<Order> findById(OrderId orderId) {
+        return springDataOrderRepository.findById(orderId.value())
+                .map(OrderJpaEntity::toDomain);
     }
 }

@@ -11,9 +11,17 @@ public final class Order {
     private OrderStatus status;
 
     public Order(OrderId id, SellerId sellerId) {
+        this(id, sellerId, OrderStatus.CREATED);
+    }
+
+    public static Order reconstitute(OrderId id, SellerId sellerId, OrderStatus status) {
+        return new Order(id, sellerId, status);
+    }
+
+    private Order(OrderId id, SellerId sellerId, OrderStatus status) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.sellerId = Objects.requireNonNull(sellerId, "sellerId must not be null");
-        this.status = OrderStatus.CREATED;
+        this.status = Objects.requireNonNull(status, "status must not be null");
     }
 
     public OrderId getId() {
