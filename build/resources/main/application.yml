@@ -1,0 +1,22 @@
+spring:
+  application:
+    name: fulfillment-orchestrator-platform
+
+  datasource:
+    url: ${SPRING_DATASOURCE_URL:jdbc:postgresql://localhost:15432/fulfillment_orchestrator}
+    username: ${SPRING_DATASOURCE_USERNAME:fulfillment_user}
+    password: ${SPRING_DATASOURCE_PASSWORD:fulfillment_password}
+
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: validate
+
+  flyway:
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
