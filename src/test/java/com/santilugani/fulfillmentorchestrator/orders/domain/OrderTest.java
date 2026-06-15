@@ -10,16 +10,18 @@ class OrderTest {
     @Test
     void createsOrderInCreatedStatus() {
         OrderId orderId = OrderId.random();
+        SellerId sellerId = SellerId.random();
 
-        Order order = new Order(orderId);
+        Order order = new Order(orderId, sellerId);
 
         assertEquals(orderId, order.getId());
+        assertEquals(sellerId, order.getSellerId());
         assertEquals(OrderStatus.CREATED, order.getStatus());
     }
 
     @Test
     void allocatesOrderFromCreated() {
-        Order order = new Order(OrderId.random());
+        Order order = new Order(OrderId.random(), SellerId.random());
 
         order.allocate();
 
@@ -28,7 +30,7 @@ class OrderTest {
 
     @Test
     void cancelsOrderFromCreated() {
-        Order order = new Order(OrderId.random());
+        Order order = new Order(OrderId.random(), SellerId.random());
 
         order.cancel();
 
@@ -37,7 +39,7 @@ class OrderTest {
 
     @Test
     void marksOrderReadyToShipFromAllocated() {
-        Order order = new Order(OrderId.random());
+        Order order = new Order(OrderId.random(), SellerId.random());
         order.allocate();
 
         order.markReadyToShip();
@@ -47,7 +49,7 @@ class OrderTest {
 
     @Test
     void cancelsOrderFromAllocated() {
-        Order order = new Order(OrderId.random());
+        Order order = new Order(OrderId.random(), SellerId.random());
         order.allocate();
 
         order.cancel();
@@ -57,7 +59,7 @@ class OrderTest {
 
     @Test
     void dispatchesOrderFromReadyToShip() {
-        Order order = new Order(OrderId.random());
+        Order order = new Order(OrderId.random(), SellerId.random());
         order.allocate();
         order.markReadyToShip();
 
@@ -68,7 +70,7 @@ class OrderTest {
 
     @Test
     void cancelsOrderFromReadyToShip() {
-        Order order = new Order(OrderId.random());
+        Order order = new Order(OrderId.random(), SellerId.random());
         order.allocate();
         order.markReadyToShip();
 
@@ -79,7 +81,7 @@ class OrderTest {
 
     @Test
     void deliversOrderFromDispatched() {
-        Order order = new Order(OrderId.random());
+        Order order = new Order(OrderId.random(), SellerId.random());
         order.allocate();
         order.markReadyToShip();
         order.dispatch();
@@ -91,7 +93,7 @@ class OrderTest {
 
     @Test
     void rejectsInvalidTransitionThroughBehavior() {
-        Order order = new Order(OrderId.random());
+        Order order = new Order(OrderId.random(), SellerId.random());
 
         InvalidOrderStatusTransitionException exception =
                 assertThrows(InvalidOrderStatusTransitionException.class, order::deliver);
@@ -102,7 +104,7 @@ class OrderTest {
 
     @Test
     void deliveredOrderCannotTransitionAgain() {
-        Order order = new Order(OrderId.random());
+        Order order = new Order(OrderId.random(), SellerId.random());
         order.allocate();
         order.markReadyToShip();
         order.dispatch();
@@ -113,7 +115,7 @@ class OrderTest {
 
     @Test
     void cancelledOrderCannotTransitionAgain() {
-        Order order = new Order(OrderId.random());
+        Order order = new Order(OrderId.random(), SellerId.random());
         order.cancel();
 
         assertThrows(InvalidOrderStatusTransitionException.class, order::allocate);
