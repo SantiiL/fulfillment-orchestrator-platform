@@ -6,6 +6,7 @@ import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -49,6 +50,13 @@ class CreateOrderServiceTest {
         @Override
         public void save(Order order) {
             savedOrders.add(order);
+        }
+
+        @Override
+        public Optional<Order> findById(com.santilugani.fulfillmentorchestrator.orders.domain.OrderId orderId) {
+            return savedOrders.stream()
+                    .filter(order -> order.getId().equals(orderId))
+                    .findFirst();
         }
     }
 }
