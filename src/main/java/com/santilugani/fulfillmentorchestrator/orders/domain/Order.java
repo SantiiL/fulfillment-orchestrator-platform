@@ -7,15 +7,21 @@ public final class Order {
     private static final OrderLifecyclePolicy LIFECYCLE_POLICY = new OrderLifecyclePolicy();
 
     private final OrderId id;
+    private final SellerId sellerId;
     private OrderStatus status;
 
-    public Order(OrderId id) {
+    public Order(OrderId id, SellerId sellerId) {
         this.id = Objects.requireNonNull(id, "id must not be null");
+        this.sellerId = Objects.requireNonNull(sellerId, "sellerId must not be null");
         this.status = OrderStatus.CREATED;
     }
 
     public OrderId getId() {
         return id;
+    }
+
+    public SellerId getSellerId() {
+        return sellerId;
     }
 
     public OrderStatus getStatus() {
