@@ -52,6 +52,18 @@ public class OrderJpaEntity implements Persistable<UUID> {
         return new OrderJpaEntity(order.getId().value(), order.getSellerId().value(), order.getStatus());
     }
 
+    public OrderJpaEntity updateFromDomain(Order order) {
+        Objects.requireNonNull(order, "order must not be null");
+
+        if (!id.equals(order.getId().value())) {
+            throw new IllegalArgumentException("Order id does not match persisted entity id");
+        }
+
+        sellerId = order.getSellerId().value();
+        status = order.getStatus();
+        return this;
+    }
+
     public Order toDomain() {
         return Order.reconstitute(new OrderId(id), new SellerId(sellerId), status);
     }

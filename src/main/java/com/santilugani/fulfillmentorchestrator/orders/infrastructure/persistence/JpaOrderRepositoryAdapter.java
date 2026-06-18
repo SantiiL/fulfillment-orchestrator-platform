@@ -22,7 +22,11 @@ public class JpaOrderRepositoryAdapter implements OrderRepository {
 
     @Override
     public void save(Order order) {
-        springDataOrderRepository.save(OrderJpaEntity.fromDomain(order));
+        OrderJpaEntity entity = springDataOrderRepository.findById(order.getId().value())
+                .map(existingEntity -> existingEntity.updateFromDomain(order))
+                .orElseGet(() -> OrderJpaEntity.fromDomain(order));
+
+        springDataOrderRepository.save(entity);
     }
 
     @Override
