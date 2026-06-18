@@ -125,6 +125,92 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
+    void allocatesExistingOrder() throws Exception {
+        UUID sellerId = UUID.randomUUID();
+        UUID orderId = createOrder(sellerId);
+        Timestamp originalUpdatedAt = jdbcTemplate.queryForObject(
+                "select updated_at from orders where id = ?",
+                Timestamp.class,
+                orderId
+        );
+
+        Thread.sleep(20);
+
+        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(orderId.toString()))
+                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
+                .andExpect(jsonPath("$.status").value("ALLOCATED"));
+
+        Map<String, Object> persistedOrder = jdbcTemplate.queryForMap(
+                "select status, updated_at from orders where id = ?",
+                orderId
+        );
+
+        assertEquals("ALLOCATED", persistedOrder.get("status"));
+        Timestamp updatedAtAfterAllocation = (Timestamp) persistedOrder.get("updated_at");
+        assertTrue(updatedAtAfterAllocation.toInstant().isAfter(originalUpdatedAt.toInstant()));
+    }
+
+    @Test
+    void returnsNotFoundWhenAllocatingMissingOrder() throws Exception {
+        UUID missingOrderId = UUID.randomUUID();
+
+        mockMvc.perform(post("/api/v1/orders/{id}/allocate", missingOrderId))
+                .andExpect(status().isNotFound())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"))
+                .andExpect(jsonPath("$.message").value("Order was not found"))
+                .andExpect(jsonPath("$.path").value("/api/v1/orders/%s/allocate".formatted(missingOrderId)))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    void returnsBadRequestWhenAllocatingWithInvalidOrderId() throws Exception {
+        mockMvc.perform(post("/api/v1/orders/{id}/allocate", "not-a-uuid"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.code").value("INVALID_ORDER_ID"))
+                .andExpect(jsonPath("$.message").value("Order id must be a valid UUID"))
+                .andExpect(jsonPath("$.path").value("/api/v1/orders/not-a-uuid/allocate"))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    @Test
+    void returnsConflictWhenAllocationIsNotAllowed() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        UUID sellerId = UUID.randomUUID();
+        Instant now = Instant.now();
+        jdbcTemplate.update(
+                "insert into orders (id, seller_id, status, created_at, updated_at) values (?, ?, ?, ?, ?)",
+                orderId,
+                sellerId,
+                "CANCELLED",
+                Timestamp.from(now),
+                Timestamp.from(now)
+        );
+
+        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
+                .andExpect(status().isConflict())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(409))
+                .andExpect(jsonPath("$.code").value("INVALID_ORDER_STATUS_TRANSITION"))
+                .andExpect(jsonPath("$.message").value("Cannot transition order status from CANCELLED to ALLOCATED"))
+                .andExpect(jsonPath("$.path").value("/api/v1/orders/%s/allocate".formatted(orderId)))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+
+        String persistedStatus = jdbcTemplate.queryForObject(
+                "select status from orders where id = ?",
+                String.class,
+                orderId
+        );
+        assertEquals("CANCELLED", persistedStatus);
+    }
+
+    @Test
     void cancelsExistingOrder() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
