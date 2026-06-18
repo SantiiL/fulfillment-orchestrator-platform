@@ -17,7 +17,7 @@ public class CancelOrderService implements CancelOrderUseCase {
     }
 
     @Override
-    public CancelOrderResult cancelOrder(CancelOrderCommand command) {
+    public OrderResult cancelOrder(CancelOrderCommand command) {
         Objects.requireNonNull(command, "command must not be null");
 
         Order order = orderRepository.findById(command.orderId())
@@ -26,7 +26,7 @@ public class CancelOrderService implements CancelOrderUseCase {
         order.cancel();
         orderRepository.save(order);
 
-        return new CancelOrderResult(
+        return new OrderResult(
                 order.getId().value(),
                 order.getSellerId().value(),
                 order.getStatus()

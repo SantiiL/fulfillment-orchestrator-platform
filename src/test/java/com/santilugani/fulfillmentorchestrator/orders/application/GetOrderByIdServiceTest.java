@@ -21,7 +21,7 @@ class GetOrderByIdServiceTest {
         Order order = new Order(OrderId.random(), SellerId.random());
         orderRepository.ordersById.put(order.getId(), order);
 
-        GetOrderByIdResult result = service.getOrderById(new GetOrderByIdQuery(order.getId()));
+        OrderResult result = service.getOrderById(new GetOrderByIdQuery(order.getId()));
 
         assertEquals(order.getId().value(), result.id());
         assertEquals(order.getSellerId().value(), result.sellerId());

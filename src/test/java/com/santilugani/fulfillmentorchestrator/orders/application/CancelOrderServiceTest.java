@@ -22,7 +22,7 @@ class CancelOrderServiceTest {
         Order order = new Order(OrderId.random(), SellerId.random());
         orderRepository.ordersById.put(order.getId(), order);
 
-        CancelOrderResult result = service.cancelOrder(new CancelOrderCommand(order.getId()));
+        OrderResult result = service.cancelOrder(new CancelOrderCommand(order.getId()));
 
         assertEquals(order.getId().value(), result.id());
         assertEquals(order.getSellerId().value(), result.sellerId());

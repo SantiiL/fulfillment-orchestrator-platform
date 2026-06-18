@@ -1,14 +1,12 @@
 package com.santilugani.fulfillmentorchestrator.orders.api;
 
 import com.santilugani.fulfillmentorchestrator.orders.application.CancelOrderCommand;
-import com.santilugani.fulfillmentorchestrator.orders.application.CancelOrderResult;
 import com.santilugani.fulfillmentorchestrator.orders.application.CancelOrderUseCase;
 import com.santilugani.fulfillmentorchestrator.orders.application.CreateOrderCommand;
-import com.santilugani.fulfillmentorchestrator.orders.application.CreateOrderResult;
 import com.santilugani.fulfillmentorchestrator.orders.application.CreateOrderUseCase;
 import com.santilugani.fulfillmentorchestrator.orders.application.GetOrderByIdQuery;
-import com.santilugani.fulfillmentorchestrator.orders.application.GetOrderByIdResult;
 import com.santilugani.fulfillmentorchestrator.orders.application.GetOrderByIdUseCase;
+import com.santilugani.fulfillmentorchestrator.orders.application.OrderResult;
 import com.santilugani.fulfillmentorchestrator.orders.domain.OrderId;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -42,7 +40,7 @@ public class OrderController {
 
     @PostMapping
     public ResponseEntity<CreateOrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
-        CreateOrderResult result = createOrderUseCase.createOrder(new CreateOrderCommand(request.sellerIdAsUuid()));
+        OrderResult result = createOrderUseCase.createOrder(new CreateOrderCommand(request.sellerIdAsUuid()));
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(new CreateOrderResponse(result.id(), result.sellerId(), result.status()));
@@ -50,14 +48,14 @@ public class OrderController {
 
     @GetMapping("/{id}")
     public ResponseEntity<GetOrderResponse> getOrderById(@PathVariable String id) {
-        GetOrderByIdResult result = getOrderByIdUseCase.getOrderById(new GetOrderByIdQuery(parseOrderId(id)));
+        OrderResult result = getOrderByIdUseCase.getOrderById(new GetOrderByIdQuery(parseOrderId(id)));
 
         return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
     }
 
     @PostMapping("/{id}/cancel")
     public ResponseEntity<GetOrderResponse> cancelOrder(@PathVariable String id) {
-        CancelOrderResult result = cancelOrderUseCase.cancelOrder(new CancelOrderCommand(parseOrderId(id)));
+        OrderResult result = cancelOrderUseCase.cancelOrder(new CancelOrderCommand(parseOrderId(id)));
 
         return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
     }

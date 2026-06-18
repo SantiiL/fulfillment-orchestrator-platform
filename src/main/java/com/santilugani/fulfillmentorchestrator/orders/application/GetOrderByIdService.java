@@ -17,13 +17,13 @@ public class GetOrderByIdService implements GetOrderByIdUseCase {
     }
 
     @Override
-    public GetOrderByIdResult getOrderById(GetOrderByIdQuery query) {
+    public OrderResult getOrderById(GetOrderByIdQuery query) {
         Objects.requireNonNull(query, "query must not be null");
 
         Order order = orderRepository.findById(query.orderId())
                 .orElseThrow(() -> new OrderNotFoundException(query.orderId()));
 
-        return new GetOrderByIdResult(
+        return new OrderResult(
                 order.getId().value(),
                 order.getSellerId().value(),
                 order.getStatus()

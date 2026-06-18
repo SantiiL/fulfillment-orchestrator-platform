@@ -20,7 +20,7 @@ class CreateOrderServiceTest {
         CreateOrderService service = new CreateOrderService(orderRepository);
         UUID sellerId = UUID.randomUUID();
 
-        CreateOrderResult result = service.createOrder(new CreateOrderCommand(sellerId));
+        OrderResult result = service.createOrder(new CreateOrderCommand(sellerId));
 
         assertNotNull(result.id());
         assertEquals(sellerId, result.sellerId());
@@ -33,7 +33,7 @@ class CreateOrderServiceTest {
         CreateOrderService service = new CreateOrderService(orderRepository);
         UUID sellerId = UUID.randomUUID();
 
-        CreateOrderResult result = service.createOrder(new CreateOrderCommand(sellerId));
+        OrderResult result = service.createOrder(new CreateOrderCommand(sellerId));
 
         assertEquals(1, orderRepository.savedOrders.size());
 
