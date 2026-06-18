@@ -19,13 +19,13 @@ public class CreateOrderService implements CreateOrderUseCase {
     }
 
     @Override
-    public CreateOrderResult createOrder(CreateOrderCommand command) {
+    public OrderResult createOrder(CreateOrderCommand command) {
         Objects.requireNonNull(command, "command must not be null");
 
         Order order = new Order(OrderId.random(), new SellerId(command.sellerId()));
         orderRepository.save(order);
 
-        return new CreateOrderResult(
+        return new OrderResult(
                 order.getId().value(),
                 order.getSellerId().value(),
                 order.getStatus()
