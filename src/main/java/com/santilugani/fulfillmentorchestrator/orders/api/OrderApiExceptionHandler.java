@@ -1,6 +1,7 @@
 package com.santilugani.fulfillmentorchestrator.orders.api;
 
 import com.santilugani.fulfillmentorchestrator.orders.application.OrderNotFoundException;
+import com.santilugani.fulfillmentorchestrator.orders.domain.InvalidOrderStatusTransitionException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -39,6 +40,19 @@ public class OrderApiExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidOrderStatusTransitionException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidOrderStatusTransition(
+            InvalidOrderStatusTransitionException exception,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(
+                HttpStatus.CONFLICT,
+                "INVALID_ORDER_STATUS_TRANSITION",
+                exception.getMessage(),
+                request.getRequestURI()
+        );
+    }
+
     private ResponseEntity<ApiErrorResponse> buildErrorResponse(
             HttpStatus status,
             String code,
@@ -46,6 +60,6 @@ public class OrderApiExceptionHandler {
             String path
     ) {
         return ResponseEntity.status(status)
-                .body(new ApiErrorResponse(code, message, path, OffsetDateTime.now(ZoneOffset.UTC)));
+                .body(new ApiErrorResponse(status.value(), code, message, path, OffsetDateTime.now(ZoneOffset.UTC)));
     }
 }
