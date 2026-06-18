@@ -1,5 +1,7 @@
 package com.santilugani.fulfillmentorchestrator.orders.api;
 
+import com.santilugani.fulfillmentorchestrator.orders.application.AllocateOrderCommand;
+import com.santilugani.fulfillmentorchestrator.orders.application.AllocateOrderUseCase;
 import com.santilugani.fulfillmentorchestrator.orders.application.CancelOrderCommand;
 import com.santilugani.fulfillmentorchestrator.orders.application.CancelOrderUseCase;
 import com.santilugani.fulfillmentorchestrator.orders.application.CreateOrderCommand;
@@ -24,15 +26,21 @@ import java.util.Objects;
 @RequestMapping("/api/v1/orders")
 public class OrderController {
 
+    private final AllocateOrderUseCase allocateOrderUseCase;
     private final CancelOrderUseCase cancelOrderUseCase;
     private final CreateOrderUseCase createOrderUseCase;
     private final GetOrderByIdUseCase getOrderByIdUseCase;
 
     public OrderController(
+            AllocateOrderUseCase allocateOrderUseCase,
             CancelOrderUseCase cancelOrderUseCase,
             CreateOrderUseCase createOrderUseCase,
             GetOrderByIdUseCase getOrderByIdUseCase
     ) {
+        this.allocateOrderUseCase = Objects.requireNonNull(
+                allocateOrderUseCase,
+                "allocateOrderUseCase must not be null"
+        );
         this.cancelOrderUseCase = Objects.requireNonNull(cancelOrderUseCase, "cancelOrderUseCase must not be null");
         this.createOrderUseCase = Objects.requireNonNull(createOrderUseCase, "createOrderUseCase must not be null");
         this.getOrderByIdUseCase = Objects.requireNonNull(getOrderByIdUseCase, "getOrderByIdUseCase must not be null");
@@ -49,6 +57,13 @@ public class OrderController {
     @GetMapping("/{id}")
     public ResponseEntity<GetOrderResponse> getOrderById(@PathVariable String id) {
         OrderResult result = getOrderByIdUseCase.getOrderById(new GetOrderByIdQuery(parseOrderId(id)));
+
+        return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
+    }
+
+    @PostMapping("/{id}/allocate")
+    public ResponseEntity<GetOrderResponse> allocateOrder(@PathVariable String id) {
+        OrderResult result = allocateOrderUseCase.allocateOrder(new AllocateOrderCommand(parseOrderId(id)));
 
         return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
     }
