@@ -91,12 +91,12 @@ class OrderControllerIntegrationTest {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
 
-        mockMvc.perform(get("/api/v1/orders/{id}", orderId))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(orderId.toString()))
-                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
-                .andExpect(jsonPath("$.status").value("CREATED"));
+        assertOrderResponse(
+                mockMvc.perform(get("/api/v1/orders/{id}", orderId)),
+                orderId,
+                sellerId,
+                "CREATED"
+        );
     }
 
     @Test
@@ -127,29 +127,18 @@ class OrderControllerIntegrationTest {
     void allocatesExistingOrder() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
-        Timestamp originalUpdatedAt = jdbcTemplate.queryForObject(
-                "select updated_at from orders where id = ?",
-                Timestamp.class,
-                orderId
-        );
+        Timestamp originalUpdatedAt = updatedAt(orderId);
 
         Thread.sleep(20);
 
-        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(orderId.toString()))
-                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
-                .andExpect(jsonPath("$.status").value("ALLOCATED"));
-
-        Map<String, Object> persistedOrder = jdbcTemplate.queryForMap(
-                "select status, updated_at from orders where id = ?",
-                orderId
+        assertOrderResponse(
+                mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId)),
+                orderId,
+                sellerId,
+                "ALLOCATED"
         );
 
-        assertEquals("ALLOCATED", persistedOrder.get("status"));
-        Timestamp updatedAtAfterAllocation = (Timestamp) persistedOrder.get("updated_at");
-        assertTrue(updatedAtAfterAllocation.toInstant().isAfter(originalUpdatedAt.toInstant()));
+        assertPersistedStatusAndUpdatedAt(orderId, "ALLOCATED", originalUpdatedAt);
     }
 
     @Test
@@ -190,43 +179,26 @@ class OrderControllerIntegrationTest {
                 "/api/v1/orders/%s/allocate".formatted(orderId)
         );
 
-        String persistedStatus = jdbcTemplate.queryForObject(
-                "select status from orders where id = ?",
-                String.class,
-                orderId
-        );
-        assertEquals("CANCELLED", persistedStatus);
+        assertPersistedStatus(orderId, "CANCELLED");
     }
 
     @Test
     void marksAllocatedOrderReadyToShip() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
-        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
-                .andExpect(status().isOk());
-        Timestamp originalUpdatedAt = jdbcTemplate.queryForObject(
-                "select updated_at from orders where id = ?",
-                Timestamp.class,
-                orderId
-        );
+        allocateOrder(orderId);
+        Timestamp originalUpdatedAt = updatedAt(orderId);
 
         Thread.sleep(20);
 
-        mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", orderId))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(orderId.toString()))
-                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
-                .andExpect(jsonPath("$.status").value("READY_TO_SHIP"));
-
-        Map<String, Object> persistedOrder = jdbcTemplate.queryForMap(
-                "select status, updated_at from orders where id = ?",
-                orderId
+        assertOrderResponse(
+                mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", orderId)),
+                orderId,
+                sellerId,
+                "READY_TO_SHIP"
         );
 
-        assertEquals("READY_TO_SHIP", persistedOrder.get("status"));
-        Timestamp updatedAtAfterMarkingReadyToShip = (Timestamp) persistedOrder.get("updated_at");
-        assertTrue(updatedAtAfterMarkingReadyToShip.toInstant().isAfter(originalUpdatedAt.toInstant()));
+        assertPersistedStatusAndUpdatedAt(orderId, "READY_TO_SHIP", originalUpdatedAt);
     }
 
     @Test
@@ -267,45 +239,27 @@ class OrderControllerIntegrationTest {
                 "/api/v1/orders/%s/ready-to-ship".formatted(orderId)
         );
 
-        String persistedStatus = jdbcTemplate.queryForObject(
-                "select status from orders where id = ?",
-                String.class,
-                orderId
-        );
-        assertEquals("CREATED", persistedStatus);
+        assertPersistedStatus(orderId, "CREATED");
     }
 
     @Test
     void dispatchesReadyToShipOrder() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
-        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
-                .andExpect(status().isOk());
-        mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", orderId))
-                .andExpect(status().isOk());
-        Timestamp originalUpdatedAt = jdbcTemplate.queryForObject(
-                "select updated_at from orders where id = ?",
-                Timestamp.class,
-                orderId
-        );
+        allocateOrder(orderId);
+        markOrderReadyToShip(orderId);
+        Timestamp originalUpdatedAt = updatedAt(orderId);
 
         Thread.sleep(20);
 
-        mockMvc.perform(post("/api/v1/orders/{id}/dispatch", orderId))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(orderId.toString()))
-                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
-                .andExpect(jsonPath("$.status").value("DISPATCHED"));
-
-        Map<String, Object> persistedOrder = jdbcTemplate.queryForMap(
-                "select status, updated_at from orders where id = ?",
-                orderId
+        assertOrderResponse(
+                mockMvc.perform(post("/api/v1/orders/{id}/dispatch", orderId)),
+                orderId,
+                sellerId,
+                "DISPATCHED"
         );
 
-        assertEquals("DISPATCHED", persistedOrder.get("status"));
-        Timestamp updatedAtAfterDispatch = (Timestamp) persistedOrder.get("updated_at");
-        assertTrue(updatedAtAfterDispatch.toInstant().isAfter(originalUpdatedAt.toInstant()));
+        assertPersistedStatusAndUpdatedAt(orderId, "DISPATCHED", originalUpdatedAt);
     }
 
     @Test
@@ -346,47 +300,28 @@ class OrderControllerIntegrationTest {
                 "/api/v1/orders/%s/dispatch".formatted(orderId)
         );
 
-        String persistedStatus = jdbcTemplate.queryForObject(
-                "select status from orders where id = ?",
-                String.class,
-                orderId
-        );
-        assertEquals("CREATED", persistedStatus);
+        assertPersistedStatus(orderId, "CREATED");
     }
 
     @Test
     void deliversDispatchedOrder() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
-        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
-                .andExpect(status().isOk());
-        mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", orderId))
-                .andExpect(status().isOk());
-        mockMvc.perform(post("/api/v1/orders/{id}/dispatch", orderId))
-                .andExpect(status().isOk());
-        Timestamp originalUpdatedAt = jdbcTemplate.queryForObject(
-                "select updated_at from orders where id = ?",
-                Timestamp.class,
-                orderId
-        );
+        allocateOrder(orderId);
+        markOrderReadyToShip(orderId);
+        dispatchOrder(orderId);
+        Timestamp originalUpdatedAt = updatedAt(orderId);
 
         Thread.sleep(20);
 
-        mockMvc.perform(post("/api/v1/orders/{id}/deliver", orderId))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(orderId.toString()))
-                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
-                .andExpect(jsonPath("$.status").value("DELIVERED"));
-
-        Map<String, Object> persistedOrder = jdbcTemplate.queryForMap(
-                "select status, updated_at from orders where id = ?",
-                orderId
+        assertOrderResponse(
+                mockMvc.perform(post("/api/v1/orders/{id}/deliver", orderId)),
+                orderId,
+                sellerId,
+                "DELIVERED"
         );
 
-        assertEquals("DELIVERED", persistedOrder.get("status"));
-        Timestamp updatedAtAfterDelivery = (Timestamp) persistedOrder.get("updated_at");
-        assertTrue(updatedAtAfterDelivery.toInstant().isAfter(originalUpdatedAt.toInstant()));
+        assertPersistedStatusAndUpdatedAt(orderId, "DELIVERED", originalUpdatedAt);
     }
 
     @Test
@@ -427,41 +362,25 @@ class OrderControllerIntegrationTest {
                 "/api/v1/orders/%s/deliver".formatted(orderId)
         );
 
-        String persistedStatus = jdbcTemplate.queryForObject(
-                "select status from orders where id = ?",
-                String.class,
-                orderId
-        );
-        assertEquals("CREATED", persistedStatus);
+        assertPersistedStatus(orderId, "CREATED");
     }
 
     @Test
     void cancelsExistingOrder() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
-        Timestamp originalUpdatedAt = jdbcTemplate.queryForObject(
-                "select updated_at from orders where id = ?",
-                Timestamp.class,
-                orderId
-        );
+        Timestamp originalUpdatedAt = updatedAt(orderId);
 
         Thread.sleep(20);
 
-        mockMvc.perform(post("/api/v1/orders/{id}/cancel", orderId))
-                .andExpect(status().isOk())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.id").value(orderId.toString()))
-                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
-                .andExpect(jsonPath("$.status").value("CANCELLED"));
-
-        Map<String, Object> persistedOrder = jdbcTemplate.queryForMap(
-                "select status, updated_at from orders where id = ?",
-                orderId
+        assertOrderResponse(
+                mockMvc.perform(post("/api/v1/orders/{id}/cancel", orderId)),
+                orderId,
+                sellerId,
+                "CANCELLED"
         );
 
-        assertEquals("CANCELLED", persistedOrder.get("status"));
-        Timestamp updatedAtAfterCancellation = (Timestamp) persistedOrder.get("updated_at");
-        assertTrue(updatedAtAfterCancellation.toInstant().isAfter(originalUpdatedAt.toInstant()));
+        assertPersistedStatusAndUpdatedAt(orderId, "CANCELLED", originalUpdatedAt);
     }
 
     @Test
@@ -502,12 +421,7 @@ class OrderControllerIntegrationTest {
                 "/api/v1/orders/%s/cancel".formatted(orderId)
         );
 
-        String persistedStatus = jdbcTemplate.queryForObject(
-                "select status from orders where id = ?",
-                String.class,
-                orderId
-        );
-        assertEquals("DELIVERED", persistedStatus);
+        assertPersistedStatus(orderId, "DELIVERED");
     }
 
     private UUID extractOrderId(String responseBody) {
@@ -533,6 +447,45 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.timestamp").isNotEmpty());
     }
 
+    private void assertOrderResponse(
+            ResultActions resultActions,
+            UUID orderId,
+            UUID sellerId,
+            String status
+    ) throws Exception {
+        resultActions
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(orderId.toString()))
+                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
+                .andExpect(jsonPath("$.status").value(status));
+    }
+
+    private void assertPersistedStatus(UUID orderId, String expectedStatus) {
+        assertEquals(expectedStatus, persistedStatus(orderId));
+    }
+
+    private void assertPersistedStatusAndUpdatedAt(UUID orderId, String expectedStatus, Timestamp originalUpdatedAt) {
+        assertPersistedStatus(orderId, expectedStatus);
+        assertTrue(updatedAt(orderId).toInstant().isAfter(originalUpdatedAt.toInstant()));
+    }
+
+    private String persistedStatus(UUID orderId) {
+        return jdbcTemplate.queryForObject(
+                "select status from orders where id = ?",
+                String.class,
+                orderId
+        );
+    }
+
+    private Timestamp updatedAt(UUID orderId) {
+        return jdbcTemplate.queryForObject(
+                "select updated_at from orders where id = ?",
+                Timestamp.class,
+                orderId
+        );
+    }
+
     private void insertOrder(UUID orderId, UUID sellerId, String status) {
         Instant now = Instant.now();
         jdbcTemplate.update(
@@ -543,6 +496,21 @@ class OrderControllerIntegrationTest {
                 Timestamp.from(now),
                 Timestamp.from(now)
         );
+    }
+
+    private void allocateOrder(UUID orderId) throws Exception {
+        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
+                .andExpect(status().isOk());
+    }
+
+    private void markOrderReadyToShip(UUID orderId) throws Exception {
+        mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", orderId))
+                .andExpect(status().isOk());
+    }
+
+    private void dispatchOrder(UUID orderId) throws Exception {
+        mockMvc.perform(post("/api/v1/orders/{id}/dispatch", orderId))
+                .andExpect(status().isOk());
     }
 
     private UUID createOrder(UUID sellerId) throws Exception {

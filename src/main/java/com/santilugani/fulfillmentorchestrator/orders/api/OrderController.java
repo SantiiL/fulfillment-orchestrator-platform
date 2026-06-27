@@ -76,14 +76,14 @@ public class OrderController {
     public ResponseEntity<GetOrderResponse> getOrderById(@PathVariable String id) {
         OrderResult result = getOrderByIdUseCase.getOrderById(new GetOrderByIdQuery(parseOrderId(id)));
 
-        return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
+        return ResponseEntity.ok(toGetOrderResponse(result));
     }
 
     @PostMapping("/{id}/allocate")
     public ResponseEntity<GetOrderResponse> allocateOrder(@PathVariable String id) {
         OrderResult result = allocateOrderUseCase.allocateOrder(new AllocateOrderCommand(parseOrderId(id)));
 
-        return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
+        return ResponseEntity.ok(toGetOrderResponse(result));
     }
 
     @PostMapping("/{id}/ready-to-ship")
@@ -92,28 +92,28 @@ public class OrderController {
                 new MarkOrderReadyToShipCommand(parseOrderId(id))
         );
 
-        return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
+        return ResponseEntity.ok(toGetOrderResponse(result));
     }
 
     @PostMapping("/{id}/dispatch")
     public ResponseEntity<GetOrderResponse> dispatchOrder(@PathVariable String id) {
         OrderResult result = dispatchOrderUseCase.dispatchOrder(new DispatchOrderCommand(parseOrderId(id)));
 
-        return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
+        return ResponseEntity.ok(toGetOrderResponse(result));
     }
 
     @PostMapping("/{id}/deliver")
     public ResponseEntity<GetOrderResponse> deliverOrder(@PathVariable String id) {
         OrderResult result = deliverOrderUseCase.deliverOrder(new DeliverOrderCommand(parseOrderId(id)));
 
-        return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
+        return ResponseEntity.ok(toGetOrderResponse(result));
     }
 
     @PostMapping("/{id}/cancel")
     public ResponseEntity<GetOrderResponse> cancelOrder(@PathVariable String id) {
         OrderResult result = cancelOrderUseCase.cancelOrder(new CancelOrderCommand(parseOrderId(id)));
 
-        return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
+        return ResponseEntity.ok(toGetOrderResponse(result));
     }
 
     private OrderId parseOrderId(String id) {
@@ -122,5 +122,9 @@ public class OrderController {
         } catch (IllegalArgumentException exception) {
             throw new InvalidOrderIdException(id);
         }
+    }
+
+    private GetOrderResponse toGetOrderResponse(OrderResult result) {
+        return new GetOrderResponse(result.id(), result.sellerId(), result.status());
     }
 }

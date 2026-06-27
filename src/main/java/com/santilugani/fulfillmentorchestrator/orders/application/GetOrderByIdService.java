@@ -23,10 +23,6 @@ public class GetOrderByIdService implements GetOrderByIdUseCase {
         Order order = orderRepository.findById(query.orderId())
                 .orElseThrow(() -> new OrderNotFoundException(query.orderId()));
 
-        return new OrderResult(
-                order.getId().value(),
-                order.getSellerId().value(),
-                order.getStatus()
-        );
+        return OrderResult.from(order);
     }
 }

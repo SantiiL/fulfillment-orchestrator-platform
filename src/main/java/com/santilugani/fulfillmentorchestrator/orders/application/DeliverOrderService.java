@@ -26,10 +26,6 @@ public class DeliverOrderService implements DeliverOrderUseCase {
         order.deliver();
         orderRepository.save(order);
 
-        return new OrderResult(
-                order.getId().value(),
-                order.getSellerId().value(),
-                order.getStatus()
-        );
+        return OrderResult.from(order);
     }
 }
