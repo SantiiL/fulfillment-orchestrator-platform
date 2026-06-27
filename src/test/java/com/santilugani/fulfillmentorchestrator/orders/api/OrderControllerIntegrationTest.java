@@ -10,6 +10,7 @@ import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+import org.springframework.test.web.servlet.ResultActions;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 import org.springframework.web.context.WebApplicationContext;
 
@@ -102,26 +103,24 @@ class OrderControllerIntegrationTest {
     void returnsNotFoundWhenOrderDoesNotExist() throws Exception {
         UUID missingOrderId = UUID.randomUUID();
 
-        mockMvc.perform(get("/api/v1/orders/{id}", missingOrderId))
-                .andExpect(status().isNotFound())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("Order was not found"))
-                .andExpect(jsonPath("$.path").value("/api/v1/orders/%s".formatted(missingOrderId)))
-                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+        assertOrderApiError(
+                mockMvc.perform(get("/api/v1/orders/{id}", missingOrderId)),
+                404,
+                "ORDER_NOT_FOUND",
+                "Order was not found",
+                "/api/v1/orders/%s".formatted(missingOrderId)
+        );
     }
 
     @Test
     void returnsBadRequestWhenOrderIdIsNotAValidUuid() throws Exception {
-        mockMvc.perform(get("/api/v1/orders/{id}", "not-a-uuid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.code").value("INVALID_ORDER_ID"))
-                .andExpect(jsonPath("$.message").value("Order id must be a valid UUID"))
-                .andExpect(jsonPath("$.path").value("/api/v1/orders/not-a-uuid"))
-                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+        assertOrderApiError(
+                mockMvc.perform(get("/api/v1/orders/{id}", "not-a-uuid")),
+                400,
+                "INVALID_ORDER_ID",
+                "Order id must be a valid UUID",
+                "/api/v1/orders/not-a-uuid"
+        );
     }
 
     @Test
@@ -157,50 +156,39 @@ class OrderControllerIntegrationTest {
     void returnsNotFoundWhenAllocatingMissingOrder() throws Exception {
         UUID missingOrderId = UUID.randomUUID();
 
-        mockMvc.perform(post("/api/v1/orders/{id}/allocate", missingOrderId))
-                .andExpect(status().isNotFound())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("Order was not found"))
-                .andExpect(jsonPath("$.path").value("/api/v1/orders/%s/allocate".formatted(missingOrderId)))
-                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/allocate", missingOrderId)),
+                404,
+                "ORDER_NOT_FOUND",
+                "Order was not found",
+                "/api/v1/orders/%s/allocate".formatted(missingOrderId)
+        );
     }
 
     @Test
     void returnsBadRequestWhenAllocatingWithInvalidOrderId() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/allocate", "not-a-uuid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.code").value("INVALID_ORDER_ID"))
-                .andExpect(jsonPath("$.message").value("Order id must be a valid UUID"))
-                .andExpect(jsonPath("$.path").value("/api/v1/orders/not-a-uuid/allocate"))
-                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/allocate", "not-a-uuid")),
+                400,
+                "INVALID_ORDER_ID",
+                "Order id must be a valid UUID",
+                "/api/v1/orders/not-a-uuid/allocate"
+        );
     }
 
     @Test
     void returnsConflictWhenAllocationIsNotAllowed() throws Exception {
         UUID orderId = UUID.randomUUID();
         UUID sellerId = UUID.randomUUID();
-        Instant now = Instant.now();
-        jdbcTemplate.update(
-                "insert into orders (id, seller_id, status, created_at, updated_at) values (?, ?, ?, ?, ?)",
-                orderId,
-                sellerId,
-                "CANCELLED",
-                Timestamp.from(now),
-                Timestamp.from(now)
-        );
+        insertOrder(orderId, sellerId, "CANCELLED");
 
-        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
-                .andExpect(status().isConflict())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.code").value("INVALID_ORDER_STATUS_TRANSITION"))
-                .andExpect(jsonPath("$.message").value("Cannot transition order status from CANCELLED to ALLOCATED"))
-                .andExpect(jsonPath("$.path").value("/api/v1/orders/%s/allocate".formatted(orderId)))
-                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId)),
+                409,
+                "INVALID_ORDER_STATUS_TRANSITION",
+                "Cannot transition order status from CANCELLED to ALLOCATED",
+                "/api/v1/orders/%s/allocate".formatted(orderId)
+        );
 
         String persistedStatus = jdbcTemplate.queryForObject(
                 "select status from orders where id = ?",
@@ -208,6 +196,83 @@ class OrderControllerIntegrationTest {
                 orderId
         );
         assertEquals("CANCELLED", persistedStatus);
+    }
+
+    @Test
+    void marksAllocatedOrderReadyToShip() throws Exception {
+        UUID sellerId = UUID.randomUUID();
+        UUID orderId = createOrder(sellerId);
+        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
+                .andExpect(status().isOk());
+        Timestamp originalUpdatedAt = jdbcTemplate.queryForObject(
+                "select updated_at from orders where id = ?",
+                Timestamp.class,
+                orderId
+        );
+
+        Thread.sleep(20);
+
+        mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", orderId))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(orderId.toString()))
+                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
+                .andExpect(jsonPath("$.status").value("READY_TO_SHIP"));
+
+        Map<String, Object> persistedOrder = jdbcTemplate.queryForMap(
+                "select status, updated_at from orders where id = ?",
+                orderId
+        );
+
+        assertEquals("READY_TO_SHIP", persistedOrder.get("status"));
+        Timestamp updatedAtAfterMarkingReadyToShip = (Timestamp) persistedOrder.get("updated_at");
+        assertTrue(updatedAtAfterMarkingReadyToShip.toInstant().isAfter(originalUpdatedAt.toInstant()));
+    }
+
+    @Test
+    void returnsNotFoundWhenMarkingReadyToShipMissingOrder() throws Exception {
+        UUID missingOrderId = UUID.randomUUID();
+
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", missingOrderId)),
+                404,
+                "ORDER_NOT_FOUND",
+                "Order was not found",
+                "/api/v1/orders/%s/ready-to-ship".formatted(missingOrderId)
+        );
+    }
+
+    @Test
+    void returnsBadRequestWhenMarkingReadyToShipWithInvalidOrderId() throws Exception {
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", "not-a-uuid")),
+                400,
+                "INVALID_ORDER_ID",
+                "Order id must be a valid UUID",
+                "/api/v1/orders/not-a-uuid/ready-to-ship"
+        );
+    }
+
+    @Test
+    void returnsConflictWhenMarkingReadyToShipIsNotAllowed() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        UUID sellerId = UUID.randomUUID();
+        insertOrder(orderId, sellerId, "CREATED");
+
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", orderId)),
+                409,
+                "INVALID_ORDER_STATUS_TRANSITION",
+                "Cannot transition order status from CREATED to READY_TO_SHIP",
+                "/api/v1/orders/%s/ready-to-ship".formatted(orderId)
+        );
+
+        String persistedStatus = jdbcTemplate.queryForObject(
+                "select status from orders where id = ?",
+                String.class,
+                orderId
+        );
+        assertEquals("CREATED", persistedStatus);
     }
 
     @Test
@@ -243,50 +308,39 @@ class OrderControllerIntegrationTest {
     void returnsNotFoundWhenCancellingMissingOrder() throws Exception {
         UUID missingOrderId = UUID.randomUUID();
 
-        mockMvc.perform(post("/api/v1/orders/{id}/cancel", missingOrderId))
-                .andExpect(status().isNotFound())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(404))
-                .andExpect(jsonPath("$.code").value("ORDER_NOT_FOUND"))
-                .andExpect(jsonPath("$.message").value("Order was not found"))
-                .andExpect(jsonPath("$.path").value("/api/v1/orders/%s/cancel".formatted(missingOrderId)))
-                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/cancel", missingOrderId)),
+                404,
+                "ORDER_NOT_FOUND",
+                "Order was not found",
+                "/api/v1/orders/%s/cancel".formatted(missingOrderId)
+        );
     }
 
     @Test
     void returnsBadRequestWhenCancellingWithInvalidOrderId() throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/cancel", "not-a-uuid"))
-                .andExpect(status().isBadRequest())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(400))
-                .andExpect(jsonPath("$.code").value("INVALID_ORDER_ID"))
-                .andExpect(jsonPath("$.message").value("Order id must be a valid UUID"))
-                .andExpect(jsonPath("$.path").value("/api/v1/orders/not-a-uuid/cancel"))
-                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/cancel", "not-a-uuid")),
+                400,
+                "INVALID_ORDER_ID",
+                "Order id must be a valid UUID",
+                "/api/v1/orders/not-a-uuid/cancel"
+        );
     }
 
     @Test
     void returnsConflictWhenCancellationIsNotAllowed() throws Exception {
         UUID orderId = UUID.randomUUID();
         UUID sellerId = UUID.randomUUID();
-        Instant now = Instant.now();
-        jdbcTemplate.update(
-                "insert into orders (id, seller_id, status, created_at, updated_at) values (?, ?, ?, ?, ?)",
-                orderId,
-                sellerId,
-                "DELIVERED",
-                Timestamp.from(now),
-                Timestamp.from(now)
-        );
+        insertOrder(orderId, sellerId, "DELIVERED");
 
-        mockMvc.perform(post("/api/v1/orders/{id}/cancel", orderId))
-                .andExpect(status().isConflict())
-                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
-                .andExpect(jsonPath("$.status").value(409))
-                .andExpect(jsonPath("$.code").value("INVALID_ORDER_STATUS_TRANSITION"))
-                .andExpect(jsonPath("$.message").value("Cannot transition order status from DELIVERED to CANCELLED"))
-                .andExpect(jsonPath("$.path").value("/api/v1/orders/%s/cancel".formatted(orderId)))
-                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/cancel", orderId)),
+                409,
+                "INVALID_ORDER_STATUS_TRANSITION",
+                "Cannot transition order status from DELIVERED to CANCELLED",
+                "/api/v1/orders/%s/cancel".formatted(orderId)
+        );
 
         String persistedStatus = jdbcTemplate.queryForObject(
                 "select status from orders where id = ?",
@@ -300,6 +354,35 @@ class OrderControllerIntegrationTest {
         Matcher matcher = Pattern.compile("\"id\"\\s*:\\s*\"([^\"]+)\"").matcher(responseBody);
         assertTrue(matcher.find(), "response body should contain an id");
         return UUID.fromString(matcher.group(1));
+    }
+
+    private void assertOrderApiError(
+            ResultActions resultActions,
+            int httpStatus,
+            String code,
+            String message,
+            String path
+    ) throws Exception {
+        resultActions
+                .andExpect(status().is(httpStatus))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.status").value(httpStatus))
+                .andExpect(jsonPath("$.code").value(code))
+                .andExpect(jsonPath("$.message").value(message))
+                .andExpect(jsonPath("$.path").value(path))
+                .andExpect(jsonPath("$.timestamp").isNotEmpty());
+    }
+
+    private void insertOrder(UUID orderId, UUID sellerId, String status) {
+        Instant now = Instant.now();
+        jdbcTemplate.update(
+                "insert into orders (id, seller_id, status, created_at, updated_at) values (?, ?, ?, ?, ?)",
+                orderId,
+                sellerId,
+                status,
+                Timestamp.from(now),
+                Timestamp.from(now)
+        );
     }
 
     private UUID createOrder(UUID sellerId) throws Exception {
