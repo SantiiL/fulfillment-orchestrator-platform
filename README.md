@@ -1,127 +1,94 @@
 # Fulfillment Orchestrator Platform
 
-Senior-level Java/Spring Boot logistics fulfillment platform focused on order orchestration, fulfillment node assignment, event-driven architecture, resilience, observability, testing and AI-assisted engineering workflows.
+Senior-level Java 21 / Spring Boot logistics fulfillment platform built as a modular monolith. The current milestone delivers a full first version of the Orders lifecycle with explicit domain rules, PostgreSQL persistence, structured API errors, unit tests, integration tests, and manual API validation.
 
-## Project Goal
+This repository is intentionally not a CRUD demo. The Orders module models business transitions through domain behavior, keeps orchestration in the application layer, isolates JPA in infrastructure, and validates the full HTTP-to-database flow with Testcontainers-backed integration tests.
 
-This project is designed as a senior backend engineering portfolio project.
+## Current Capabilities
 
-It simulates a logistics fulfillment platform where orders are created, assigned to fulfillment nodes, processed through a lifecycle, published as domain events and monitored through observability tools.
+* Create an order for a seller.
+* Retrieve an order by ID.
+* Allocate an order.
+* Mark an allocated order as ready to ship.
+* Dispatch a ready-to-ship order.
+* Deliver a dispatched order.
+* Cancel an order only from lifecycle states allowed by the domain policy.
+* Return structured API errors with `status`, `code`, `message`, `path`, and `timestamp`.
+* Persist orders in PostgreSQL with Flyway-managed schema changes.
+* Validate the module with pure unit tests and integration tests.
 
-The goal is not to build a simple CRUD application, but to demonstrate real backend engineering decisions around:
-
-* Domain modeling
-* Modular architecture
-* Event-driven communication
-* Idempotency
-* Resilience patterns
-* Testing strategy
-* Observability
-* Documentation
-* AI-assisted development workflows
-
-## Core Domain
-
-The platform will model a simplified logistics operation:
-
-* Sellers create orders.
-* Orders are assigned to fulfillment nodes.
-* Fulfillment nodes have capacity, working days and operational constraints.
-* Orders move through a controlled lifecycle.
-* Domain events are published for relevant state changes.
-* Failures, retries and incidents are handled explicitly.
-
-## Planned Tech Stack
+## Tech Stack
 
 * Java 21
 * Spring Boot
+* Spring Web MVC
 * Spring Data JPA
+* Bean Validation
 * PostgreSQL
 * Flyway
 * Docker Compose
 * Testcontainers
 * JUnit 5
-* Mockito
-* Spring Boot Actuator
-* OpenAPI / Swagger
-* Kafka
-* Redis
-* Micrometer
-* OpenTelemetry
-* Prometheus
-* Grafana
-* GitHub Actions
-
-## Current Implemented Stack
-
-The current project scaffold includes:
-
-* Java 21
-* Spring Boot
 * Gradle
-* Spring Web MVC
-* Spring Data JPA
-* Bean Validation
-* PostgreSQL Driver
-* Flyway
-* Spring Boot Actuator
-* Docker Compose
-* Testcontainers
-* JUnit 5
 
-Kafka, Redis, OpenTelemetry, Prometheus and Grafana are planned for later phases and are intentionally not included in the initial scaffold.
+## Architecture Summary
 
-## Architecture Approach
+The project starts as a modular monolith organized by business capability. The first implemented business module is `orders`.
 
-The project starts as a modular monolith.
+The current request flow is:
 
-This is an intentional decision to validate domain boundaries before extracting services. The system will be organized into clear modules such as orders, fulfillment, working days, incidents and notifications.
+```text
+API -> Application -> Domain -> Infrastructure -> PostgreSQL
+```
 
-Service extraction will only be considered when the module boundaries and communication patterns become stable.
+Within the Orders module:
 
-See:
+* `api` handles HTTP requests, responses, and API error shaping.
+* `application` coordinates use cases and repository ports.
+* `domain` owns lifecycle rules and behavior methods such as `order.allocate()` and `order.deliver()`.
+* `infrastructure` contains JPA persistence adapters and database mapping.
 
-* `docs/adr/0001-use-modular-monolith-first.md`
-* `docs/architecture/system-overview.md`
+The domain layer remains framework-free. Spring, JPA, and web annotations stay out of the core business model.
 
-## AI-Assisted Engineering Workflow
+## Orders Lifecycle Overview
 
-This project is also used to document a professional AI-assisted engineering workflow.
+Primary lifecycle:
 
-AI tools may be used for:
+```text
+CREATED -> ALLOCATED -> READY_TO_SHIP -> DISPATCHED -> DELIVERED
+```
 
-* Feature planning
-* Architecture alternatives
-* Refactor suggestions
-* Test strategy
-* Documentation drafts
-* Code review assistance
-* PR summaries
+Cancellation is currently allowed from:
 
-Human-owned decisions include:
+* `CREATED`
+* `ALLOCATED`
+* `READY_TO_SHIP`
 
-* Architecture
-* Domain modeling
-* Trade-offs
-* Security boundaries
-* Final code review
-* Merge decisions
+Terminal states:
 
-AI usage is documented in:
+* `DELIVERED`
+* `CANCELLED`
 
-* `docs/ai-engineering-log/`
+Invalid transitions are rejected by the domain policy and returned by the API as `409 Conflict` with the business error code `INVALID_ORDER_STATUS_TRANSITION`.
 
-Reusable skills are documented in:
+## Available API Endpoints
 
-* `skills/`
+| Method | Path | Purpose | Success |
+| --- | --- | --- | --- |
+| `POST` | `/api/v1/orders` | Create order | `201 Created` |
+| `GET` | `/api/v1/orders/{id}` | Get order by ID | `200 OK` |
+| `POST` | `/api/v1/orders/{id}/cancel` | Cancel order | `200 OK` |
+| `POST` | `/api/v1/orders/{id}/allocate` | Allocate order | `200 OK` |
+| `POST` | `/api/v1/orders/{id}/ready-to-ship` | Mark order ready to ship | `200 OK` |
+| `POST` | `/api/v1/orders/{id}/dispatch` | Dispatch order | `200 OK` |
+| `POST` | `/api/v1/orders/{id}/deliver` | Deliver order | `200 OK` |
 
-## Running Locally
+## Run Locally
 
 ### Requirements
 
 * Java 21
 * Docker Desktop
-* Git
 
 ### Start PostgreSQL
 
@@ -129,55 +96,15 @@ Reusable skills are documented in:
 docker compose up -d postgres
 ```
 
-PostgreSQL runs on the host using port `15432`:
+Local database connection:
 
 ```text
-localhost:15432 -> container:5432
-```
-
-The container uses the following local development credentials:
-
-```text
+Host: localhost
+Port: 15432
 Database: fulfillment_orchestrator
 Username: fulfillment_user
 Password: fulfillment_password
 ```
-
-### Validate PostgreSQL
-
-```bash
-docker ps
-```
-
-Expected result:
-
-```text
-fulfillment-orchestrator-postgres   Up ... (healthy)
-```
-
-You can also validate the database connection with:
-
-```bash
-docker exec -e PGPASSWORD=fulfillment_password fulfillment-orchestrator-postgres \
-  psql -U fulfillment_user -d fulfillment_orchestrator \
-  -c "select current_user, current_database();"
-```
-
-Expected result:
-
-```text
-current_user      | current_database
-------------------+--------------------------
-fulfillment_user  | fulfillment_orchestrator
-```
-
-### Run Tests
-
-```bash
-./gradlew clean test
-```
-
-The test suite uses Testcontainers to start an isolated PostgreSQL container for integration tests.
 
 ### Start the Application
 
@@ -185,38 +112,22 @@ The test suite uses Testcontainers to start an isolated PostgreSQL container for
 ./gradlew bootRun
 ```
 
-The application starts on:
+Windows PowerShell equivalent:
+
+```powershell
+.\gradlew.bat bootRun
+```
+
+Application base URL:
 
 ```text
 http://localhost:8080
 ```
 
-### Health Check
-
-Using Git Bash:
+Optional health check:
 
 ```bash
 curl http://localhost:8080/actuator/health
-```
-
-Using PowerShell:
-
-```powershell
-curl.exe http://localhost:8080/actuator/health
-```
-
-Expected response:
-
-```json
-{"status":"UP"}
-```
-
-### Stop the Application
-
-If the application is running with `bootRun`, stop it with:
-
-```text
-CTRL + C
 ```
 
 ### Stop Local Services
@@ -225,78 +136,74 @@ CTRL + C
 docker compose down
 ```
 
-To remove local database data:
+Remove local database data:
 
 ```bash
 docker compose down -v
 ```
 
-## Database Migrations
+## Run Tests
 
-Flyway is enabled and will manage database schema evolution.
-
-Migration files should be added under:
-
-```text
-src/main/resources/db/migration/
+```bash
+./gradlew clean test
 ```
 
-Example:
+Windows PowerShell equivalent:
 
-```text
-V1__create_initial_schema.sql
+```powershell
+.\gradlew.bat clean test
 ```
 
-Hibernate is configured with:
+The automated test suite uses Testcontainers for integration tests, so it does not require a manually running local PostgreSQL container.
 
-```yaml
-ddl-auto: validate
-```
+## Manual API Validation
 
-This means Hibernate validates the schema but does not create or update database tables automatically. Flyway is the source of truth for database schema changes.
+Manual lifecycle validation cURLs are documented in:
 
-## Testing Strategy
+* [docs/api/orders-manual-validation.md](docs/api/orders-manual-validation.md)
 
-The project uses different types of tests:
+That guide covers:
 
-* Unit tests for business logic.
-* Integration tests for persistence and application context.
-* Testcontainers for PostgreSQL-based integration tests.
+* full lifecycle progression from `CREATED` to `DELIVERED`
+* invalid transition checks
+* invalid UUID and missing-order cases
+* direct PostgreSQL verification
 
-The goal is to avoid relying only on mocks for persistence behavior and validate database-related behavior against a real PostgreSQL instance.
+## Documentation
 
-## Repository Workflow
+* [README.md](README.md)
+* [ROADMAP.md](ROADMAP.md)
+* [docs/orders/orders-lifecycle.md](docs/orders/orders-lifecycle.md)
+* [docs/architecture/current-architecture.md](docs/architecture/current-architecture.md)
+* [docs/architecture/system-overview.md](docs/architecture/system-overview.md)
+* [docs/architecture/package-structure.md](docs/architecture/package-structure.md)
+* [docs/api/orders-manual-validation.md](docs/api/orders-manual-validation.md)
+* [docs/adr/0001-use-modular-monolith-first.md](docs/adr/0001-use-modular-monolith-first.md)
+* [docs/ai-engineering-log/](docs/ai-engineering-log/)
 
-This project follows a lightweight Gitflow workflow:
+## Current Project Status
 
-* `main`: stable public version
-* `develop`: integration branch
-* `feature/*`: feature branches
-* Pull requests are required before merging into `develop`
+The first real business milestone is complete: the Orders module now supports the full initial lifecycle and persistence flow end to end.
 
-## Current Status
+Implemented today:
 
-The project documentation foundation has been created.
+* modular Orders domain model and lifecycle policy
+* REST endpoints for creation, retrieval, cancellation, allocation, ready-to-ship, dispatch, and delivery
+* PostgreSQL persistence with Flyway
+* structured API error responses
+* lifecycle-focused unit and integration tests
+* manual validation cURLs
+* post-lifecycle cleanup/refactor
 
-The Spring Boot application scaffold is initialized and can:
+## Next Roadmap Items
 
-* Build successfully.
-* Run tests successfully.
-* Start locally with PostgreSQL through Docker Compose.
-* Expose an Actuator health endpoint.
-
-Domain implementation has not started yet.
-
-## Next Steps
-
-Planned next steps:
-
-* Define the initial package/module structure.
-* Add the Orders module.
-* Add the first Flyway migration.
-* Implement order creation.
-* Add unit and integration tests for the Orders module.
-* Document the first business feature through an issue and pull request.
+* Fulfillment node assignment
+* Working days / business rules
+* Incidents / failure handling
+* Domain events and outbox
+* Idempotency
+* Observability
+* CI/CD
 
 ## License
 
