@@ -6,6 +6,8 @@ import com.santilugani.fulfillmentorchestrator.orders.application.CancelOrderCom
 import com.santilugani.fulfillmentorchestrator.orders.application.CancelOrderUseCase;
 import com.santilugani.fulfillmentorchestrator.orders.application.CreateOrderCommand;
 import com.santilugani.fulfillmentorchestrator.orders.application.CreateOrderUseCase;
+import com.santilugani.fulfillmentorchestrator.orders.application.DispatchOrderCommand;
+import com.santilugani.fulfillmentorchestrator.orders.application.DispatchOrderUseCase;
 import com.santilugani.fulfillmentorchestrator.orders.application.GetOrderByIdQuery;
 import com.santilugani.fulfillmentorchestrator.orders.application.GetOrderByIdUseCase;
 import com.santilugani.fulfillmentorchestrator.orders.application.MarkOrderReadyToShipCommand;
@@ -31,6 +33,7 @@ public class OrderController {
     private final AllocateOrderUseCase allocateOrderUseCase;
     private final CancelOrderUseCase cancelOrderUseCase;
     private final CreateOrderUseCase createOrderUseCase;
+    private final DispatchOrderUseCase dispatchOrderUseCase;
     private final GetOrderByIdUseCase getOrderByIdUseCase;
     private final MarkOrderReadyToShipUseCase markOrderReadyToShipUseCase;
 
@@ -38,6 +41,7 @@ public class OrderController {
             AllocateOrderUseCase allocateOrderUseCase,
             CancelOrderUseCase cancelOrderUseCase,
             CreateOrderUseCase createOrderUseCase,
+            DispatchOrderUseCase dispatchOrderUseCase,
             GetOrderByIdUseCase getOrderByIdUseCase,
             MarkOrderReadyToShipUseCase markOrderReadyToShipUseCase
     ) {
@@ -47,6 +51,7 @@ public class OrderController {
         );
         this.cancelOrderUseCase = Objects.requireNonNull(cancelOrderUseCase, "cancelOrderUseCase must not be null");
         this.createOrderUseCase = Objects.requireNonNull(createOrderUseCase, "createOrderUseCase must not be null");
+        this.dispatchOrderUseCase = Objects.requireNonNull(dispatchOrderUseCase, "dispatchOrderUseCase must not be null");
         this.getOrderByIdUseCase = Objects.requireNonNull(getOrderByIdUseCase, "getOrderByIdUseCase must not be null");
         this.markOrderReadyToShipUseCase = Objects.requireNonNull(
                 markOrderReadyToShipUseCase,
@@ -81,6 +86,13 @@ public class OrderController {
         OrderResult result = markOrderReadyToShipUseCase.markOrderReadyToShip(
                 new MarkOrderReadyToShipCommand(parseOrderId(id))
         );
+
+        return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
+    }
+
+    @PostMapping("/{id}/dispatch")
+    public ResponseEntity<GetOrderResponse> dispatchOrder(@PathVariable String id) {
+        OrderResult result = dispatchOrderUseCase.dispatchOrder(new DispatchOrderCommand(parseOrderId(id)));
 
         return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
     }
