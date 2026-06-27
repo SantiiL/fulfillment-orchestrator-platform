@@ -8,6 +8,8 @@ import com.santilugani.fulfillmentorchestrator.orders.application.CreateOrderCom
 import com.santilugani.fulfillmentorchestrator.orders.application.CreateOrderUseCase;
 import com.santilugani.fulfillmentorchestrator.orders.application.GetOrderByIdQuery;
 import com.santilugani.fulfillmentorchestrator.orders.application.GetOrderByIdUseCase;
+import com.santilugani.fulfillmentorchestrator.orders.application.MarkOrderReadyToShipCommand;
+import com.santilugani.fulfillmentorchestrator.orders.application.MarkOrderReadyToShipUseCase;
 import com.santilugani.fulfillmentorchestrator.orders.application.OrderResult;
 import com.santilugani.fulfillmentorchestrator.orders.domain.OrderId;
 import jakarta.validation.Valid;
@@ -30,12 +32,14 @@ public class OrderController {
     private final CancelOrderUseCase cancelOrderUseCase;
     private final CreateOrderUseCase createOrderUseCase;
     private final GetOrderByIdUseCase getOrderByIdUseCase;
+    private final MarkOrderReadyToShipUseCase markOrderReadyToShipUseCase;
 
     public OrderController(
             AllocateOrderUseCase allocateOrderUseCase,
             CancelOrderUseCase cancelOrderUseCase,
             CreateOrderUseCase createOrderUseCase,
-            GetOrderByIdUseCase getOrderByIdUseCase
+            GetOrderByIdUseCase getOrderByIdUseCase,
+            MarkOrderReadyToShipUseCase markOrderReadyToShipUseCase
     ) {
         this.allocateOrderUseCase = Objects.requireNonNull(
                 allocateOrderUseCase,
@@ -44,6 +48,10 @@ public class OrderController {
         this.cancelOrderUseCase = Objects.requireNonNull(cancelOrderUseCase, "cancelOrderUseCase must not be null");
         this.createOrderUseCase = Objects.requireNonNull(createOrderUseCase, "createOrderUseCase must not be null");
         this.getOrderByIdUseCase = Objects.requireNonNull(getOrderByIdUseCase, "getOrderByIdUseCase must not be null");
+        this.markOrderReadyToShipUseCase = Objects.requireNonNull(
+                markOrderReadyToShipUseCase,
+                "markOrderReadyToShipUseCase must not be null"
+        );
     }
 
     @PostMapping
@@ -64,6 +72,15 @@ public class OrderController {
     @PostMapping("/{id}/allocate")
     public ResponseEntity<GetOrderResponse> allocateOrder(@PathVariable String id) {
         OrderResult result = allocateOrderUseCase.allocateOrder(new AllocateOrderCommand(parseOrderId(id)));
+
+        return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
+    }
+
+    @PostMapping("/{id}/ready-to-ship")
+    public ResponseEntity<GetOrderResponse> markOrderReadyToShip(@PathVariable String id) {
+        OrderResult result = markOrderReadyToShipUseCase.markOrderReadyToShip(
+                new MarkOrderReadyToShipCommand(parseOrderId(id))
+        );
 
         return ResponseEntity.ok(new GetOrderResponse(result.id(), result.sellerId(), result.status()));
     }
