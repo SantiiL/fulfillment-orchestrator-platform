@@ -276,6 +276,85 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
+    void dispatchesReadyToShipOrder() throws Exception {
+        UUID sellerId = UUID.randomUUID();
+        UUID orderId = createOrder(sellerId);
+        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
+                .andExpect(status().isOk());
+        mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", orderId))
+                .andExpect(status().isOk());
+        Timestamp originalUpdatedAt = jdbcTemplate.queryForObject(
+                "select updated_at from orders where id = ?",
+                Timestamp.class,
+                orderId
+        );
+
+        Thread.sleep(20);
+
+        mockMvc.perform(post("/api/v1/orders/{id}/dispatch", orderId))
+                .andExpect(status().isOk())
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.id").value(orderId.toString()))
+                .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
+                .andExpect(jsonPath("$.status").value("DISPATCHED"));
+
+        Map<String, Object> persistedOrder = jdbcTemplate.queryForMap(
+                "select status, updated_at from orders where id = ?",
+                orderId
+        );
+
+        assertEquals("DISPATCHED", persistedOrder.get("status"));
+        Timestamp updatedAtAfterDispatch = (Timestamp) persistedOrder.get("updated_at");
+        assertTrue(updatedAtAfterDispatch.toInstant().isAfter(originalUpdatedAt.toInstant()));
+    }
+
+    @Test
+    void returnsNotFoundWhenDispatchingMissingOrder() throws Exception {
+        UUID missingOrderId = UUID.randomUUID();
+
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/dispatch", missingOrderId)),
+                404,
+                "ORDER_NOT_FOUND",
+                "Order was not found",
+                "/api/v1/orders/%s/dispatch".formatted(missingOrderId)
+        );
+    }
+
+    @Test
+    void returnsBadRequestWhenDispatchingWithInvalidOrderId() throws Exception {
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/dispatch", "not-a-uuid")),
+                400,
+                "INVALID_ORDER_ID",
+                "Order id must be a valid UUID",
+                "/api/v1/orders/not-a-uuid/dispatch"
+        );
+    }
+
+    @Test
+    void returnsConflictWhenDispatchIsNotAllowed() throws Exception {
+        UUID orderId = UUID.randomUUID();
+        UUID sellerId = UUID.randomUUID();
+        insertOrder(orderId, sellerId, "CREATED");
+
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/dispatch", orderId)),
+                409,
+                "INVALID_ORDER_STATUS_TRANSITION",
+                "Cannot transition order status from CREATED to DISPATCHED",
+                "/api/v1/orders/%s/dispatch".formatted(orderId)
+        );
+
+        String persistedStatus = jdbcTemplate.queryForObject(
+                "select status from orders where id = ?",
+                String.class,
+                orderId
+        );
+        assertEquals("CREATED", persistedStatus);
+    }
+
+    @Test
     void cancelsExistingOrder() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
