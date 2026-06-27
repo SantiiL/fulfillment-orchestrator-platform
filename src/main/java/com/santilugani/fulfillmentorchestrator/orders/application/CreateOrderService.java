@@ -25,10 +25,6 @@ public class CreateOrderService implements CreateOrderUseCase {
         Order order = new Order(OrderId.random(), new SellerId(command.sellerId()));
         orderRepository.save(order);
 
-        return new OrderResult(
-                order.getId().value(),
-                order.getSellerId().value(),
-                order.getStatus()
-        );
+        return OrderResult.from(order);
     }
 }

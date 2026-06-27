@@ -26,10 +26,6 @@ public class MarkOrderReadyToShipService implements MarkOrderReadyToShipUseCase 
         order.markReadyToShip();
         orderRepository.save(order);
 
-        return new OrderResult(
-                order.getId().value(),
-                order.getSellerId().value(),
-                order.getStatus()
-        );
+        return OrderResult.from(order);
     }
 }
