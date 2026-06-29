@@ -6,7 +6,12 @@ import com.santilugani.fulfillmentorchestrator.orders.domain.OrderStatus;
 import java.util.Objects;
 import java.util.UUID;
 
-public record OrderResult(UUID id, UUID sellerId, OrderStatus status) {
+public record OrderResult(
+        UUID id,
+        UUID sellerId,
+        OrderStatus status,
+        UUID assignedFulfillmentNodeId
+) {
 
     public OrderResult {
         Objects.requireNonNull(id, "id must not be null");
@@ -19,7 +24,8 @@ public record OrderResult(UUID id, UUID sellerId, OrderStatus status) {
         return new OrderResult(
                 order.getId().value(),
                 order.getSellerId().value(),
-                order.getStatus()
+                order.getStatus(),
+                order.getAssignedFulfillmentNodeId() == null ? null : order.getAssignedFulfillmentNodeId().value()
         );
     }
 }

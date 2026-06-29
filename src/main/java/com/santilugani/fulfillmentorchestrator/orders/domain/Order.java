@@ -9,19 +9,35 @@ public final class Order {
     private final OrderId id;
     private final SellerId sellerId;
     private OrderStatus status;
+    private AssignedFulfillmentNodeId assignedFulfillmentNodeId;
 
     public Order(OrderId id, SellerId sellerId) {
-        this(id, sellerId, OrderStatus.CREATED);
+        this(id, sellerId, OrderStatus.CREATED, null);
     }
 
     public static Order reconstitute(OrderId id, SellerId sellerId, OrderStatus status) {
-        return new Order(id, sellerId, status);
+        return reconstitute(id, sellerId, status, null);
     }
 
-    private Order(OrderId id, SellerId sellerId, OrderStatus status) {
+    public static Order reconstitute(
+            OrderId id,
+            SellerId sellerId,
+            OrderStatus status,
+            AssignedFulfillmentNodeId assignedFulfillmentNodeId
+    ) {
+        return new Order(id, sellerId, status, assignedFulfillmentNodeId);
+    }
+
+    private Order(
+            OrderId id,
+            SellerId sellerId,
+            OrderStatus status,
+            AssignedFulfillmentNodeId assignedFulfillmentNodeId
+    ) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.sellerId = Objects.requireNonNull(sellerId, "sellerId must not be null");
         this.status = Objects.requireNonNull(status, "status must not be null");
+        this.assignedFulfillmentNodeId = assignedFulfillmentNodeId;
     }
 
     public OrderId getId() {
@@ -36,8 +52,14 @@ public final class Order {
         return status;
     }
 
-    public void allocate() {
+    public AssignedFulfillmentNodeId getAssignedFulfillmentNodeId() {
+        return assignedFulfillmentNodeId;
+    }
+
+    public void allocate(AssignedFulfillmentNodeId assignedFulfillmentNodeId) {
+        Objects.requireNonNull(assignedFulfillmentNodeId, "assignedFulfillmentNodeId must not be null");
         transitionTo(OrderStatus.ALLOCATED);
+        this.assignedFulfillmentNodeId = assignedFulfillmentNodeId;
     }
 
     public void markReadyToShip() {

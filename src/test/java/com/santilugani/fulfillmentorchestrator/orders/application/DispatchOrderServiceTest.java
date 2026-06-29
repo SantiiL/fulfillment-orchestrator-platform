@@ -1,11 +1,14 @@
 package com.santilugani.fulfillmentorchestrator.orders.application;
 
+import com.santilugani.fulfillmentorchestrator.orders.domain.AssignedFulfillmentNodeId;
 import com.santilugani.fulfillmentorchestrator.orders.domain.InvalidOrderStatusTransitionException;
 import com.santilugani.fulfillmentorchestrator.orders.domain.Order;
 import com.santilugani.fulfillmentorchestrator.orders.domain.OrderId;
 import com.santilugani.fulfillmentorchestrator.orders.domain.OrderStatus;
 import com.santilugani.fulfillmentorchestrator.orders.domain.SellerId;
 import org.junit.jupiter.api.Test;
+
+import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -17,7 +20,7 @@ class DispatchOrderServiceTest {
         TestOrderRepository orderRepository = new TestOrderRepository();
         DispatchOrderService service = new DispatchOrderService(orderRepository);
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate();
+        order.allocate(new AssignedFulfillmentNodeId(UUID.randomUUID()));
         order.markReadyToShip();
         orderRepository.store(order);
 
@@ -33,7 +36,7 @@ class DispatchOrderServiceTest {
         TestOrderRepository orderRepository = new TestOrderRepository();
         DispatchOrderService service = new DispatchOrderService(orderRepository);
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate();
+        order.allocate(new AssignedFulfillmentNodeId(UUID.randomUUID()));
         order.markReadyToShip();
         orderRepository.store(order);
 

@@ -23,6 +23,7 @@ import java.util.regex.Pattern;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -46,6 +47,7 @@ class OrderControllerIntegrationTest {
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
         jdbcTemplate.update("delete from orders");
+        jdbcTemplate.update("delete from fulfillment_nodes");
     }
 
     @Test
@@ -61,16 +63,19 @@ class OrderControllerIntegrationTest {
                 .andExpect(jsonPath("$.status").value("CREATED"))
                 .andReturn();
 
+        assertTrue(result.getResponse().getContentAsString().contains("\"assignedFulfillmentNodeId\""));
+
         UUID orderId = extractOrderId(result.getResponse().getContentAsString());
 
         Map<String, Object> persistedOrder = jdbcTemplate.queryForMap(
-                "select id, seller_id, status, created_at, updated_at from orders where id = ?",
+                "select id, seller_id, status, fulfillment_node_id, created_at, updated_at from orders where id = ?",
                 orderId
         );
 
         assertEquals(orderId, persistedOrder.get("id"));
         assertEquals(sellerId, persistedOrder.get("seller_id"));
         assertEquals("CREATED", persistedOrder.get("status"));
+        assertNull(persistedOrder.get("fulfillment_node_id"));
         assertNotNull(persistedOrder.get("created_at"));
         assertNotNull(persistedOrder.get("updated_at"));
     }
@@ -95,7 +100,8 @@ class OrderControllerIntegrationTest {
                 mockMvc.perform(get("/api/v1/orders/{id}", orderId)),
                 orderId,
                 sellerId,
-                "CREATED"
+                "CREATED",
+                null
         );
     }
 
@@ -124,29 +130,41 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
-    void allocatesExistingOrder() throws Exception {
+    void allocatesExistingOrderToFulfillmentNodeAndReturnsItFromGetOrder() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
+        UUID fulfillmentNodeId = createActiveFulfillmentNode();
         Timestamp originalUpdatedAt = updatedAt(orderId);
 
         Thread.sleep(20);
 
         assertOrderResponse(
-                mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId)),
+                allocateOrderRequest(orderId, fulfillmentNodeId),
                 orderId,
                 sellerId,
-                "ALLOCATED"
+                "ALLOCATED",
+                fulfillmentNodeId
+        );
+
+        assertOrderResponse(
+                mockMvc.perform(get("/api/v1/orders/{id}", orderId)),
+                orderId,
+                sellerId,
+                "ALLOCATED",
+                fulfillmentNodeId
         );
 
         assertPersistedStatusAndUpdatedAt(orderId, "ALLOCATED", originalUpdatedAt);
+        assertEquals(fulfillmentNodeId, persistedFulfillmentNodeId(orderId));
     }
 
     @Test
     void returnsNotFoundWhenAllocatingMissingOrder() throws Exception {
         UUID missingOrderId = UUID.randomUUID();
+        UUID fulfillmentNodeId = createActiveFulfillmentNode();
 
         assertOrderApiError(
-                mockMvc.perform(post("/api/v1/orders/{id}/allocate", missingOrderId)),
+                allocateOrderRequest(missingOrderId, fulfillmentNodeId),
                 404,
                 "ORDER_NOT_FOUND",
                 "Order was not found",
@@ -157,7 +175,9 @@ class OrderControllerIntegrationTest {
     @Test
     void returnsBadRequestWhenAllocatingWithInvalidOrderId() throws Exception {
         assertOrderApiError(
-                mockMvc.perform(post("/api/v1/orders/{id}/allocate", "not-a-uuid")),
+                mockMvc.perform(post("/api/v1/orders/{id}/allocate", "not-a-uuid")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"fulfillmentNodeId\":\"%s\"}".formatted(UUID.randomUUID()))),
                 400,
                 "INVALID_ORDER_ID",
                 "Order id must be a valid UUID",
@@ -166,13 +186,85 @@ class OrderControllerIntegrationTest {
     }
 
     @Test
+    void returnsBadRequestWhenAllocatingWithoutFulfillmentNodeId() throws Exception {
+        UUID orderId = createOrder(UUID.randomUUID());
+
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}")),
+                400,
+                "MISSING_FULFILLMENT_NODE_ID",
+                "fulfillmentNodeId is required",
+                "/api/v1/orders/%s/allocate".formatted(orderId)
+        );
+
+        assertEquals("CREATED", persistedStatus(orderId));
+        assertNull(persistedFulfillmentNodeId(orderId));
+    }
+
+    @Test
+    void returnsBadRequestWhenAllocatingWithInvalidFulfillmentNodeId() throws Exception {
+        UUID orderId = createOrder(UUID.randomUUID());
+
+        assertOrderApiError(
+                mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"fulfillmentNodeId\":\"not-a-uuid\"}")),
+                400,
+                "INVALID_FULFILLMENT_NODE_ID",
+                "Fulfillment node id must be a valid UUID",
+                "/api/v1/orders/%s/allocate".formatted(orderId)
+        );
+
+        assertEquals("CREATED", persistedStatus(orderId));
+        assertNull(persistedFulfillmentNodeId(orderId));
+    }
+
+    @Test
+    void returnsNotFoundWhenAllocatingWithMissingFulfillmentNode() throws Exception {
+        UUID orderId = createOrder(UUID.randomUUID());
+        UUID missingFulfillmentNodeId = UUID.randomUUID();
+
+        assertOrderApiError(
+                allocateOrderRequest(orderId, missingFulfillmentNodeId),
+                404,
+                "FULFILLMENT_NODE_NOT_FOUND",
+                "Fulfillment node was not found",
+                "/api/v1/orders/%s/allocate".formatted(orderId)
+        );
+
+        assertEquals("CREATED", persistedStatus(orderId));
+        assertNull(persistedFulfillmentNodeId(orderId));
+    }
+
+    @Test
+    void returnsConflictWhenAllocatingWithInactiveFulfillmentNode() throws Exception {
+        UUID orderId = createOrder(UUID.randomUUID());
+        UUID fulfillmentNodeId = UUID.randomUUID();
+        insertFulfillmentNode(fulfillmentNodeId, "AR-BUE-01", "Buenos Aires Node 1", 100, false);
+
+        assertOrderApiError(
+                allocateOrderRequest(orderId, fulfillmentNodeId),
+                409,
+                "FULFILLMENT_NODE_INACTIVE",
+                "Fulfillment node is inactive",
+                "/api/v1/orders/%s/allocate".formatted(orderId)
+        );
+
+        assertEquals("CREATED", persistedStatus(orderId));
+        assertNull(persistedFulfillmentNodeId(orderId));
+    }
+
+    @Test
     void returnsConflictWhenAllocationIsNotAllowed() throws Exception {
         UUID orderId = UUID.randomUUID();
         UUID sellerId = UUID.randomUUID();
+        UUID fulfillmentNodeId = createActiveFulfillmentNode();
         insertOrder(orderId, sellerId, "CANCELLED");
 
         assertOrderApiError(
-                mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId)),
+                allocateOrderRequest(orderId, fulfillmentNodeId),
                 409,
                 "INVALID_ORDER_STATUS_TRANSITION",
                 "Cannot transition order status from CANCELLED to ALLOCATED",
@@ -186,7 +278,7 @@ class OrderControllerIntegrationTest {
     void marksAllocatedOrderReadyToShip() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
-        allocateOrder(orderId);
+        UUID fulfillmentNodeId = allocateOrder(orderId);
         Timestamp originalUpdatedAt = updatedAt(orderId);
 
         Thread.sleep(20);
@@ -195,7 +287,8 @@ class OrderControllerIntegrationTest {
                 mockMvc.perform(post("/api/v1/orders/{id}/ready-to-ship", orderId)),
                 orderId,
                 sellerId,
-                "READY_TO_SHIP"
+                "READY_TO_SHIP",
+                fulfillmentNodeId
         );
 
         assertPersistedStatusAndUpdatedAt(orderId, "READY_TO_SHIP", originalUpdatedAt);
@@ -246,7 +339,7 @@ class OrderControllerIntegrationTest {
     void dispatchesReadyToShipOrder() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
-        allocateOrder(orderId);
+        UUID fulfillmentNodeId = allocateOrder(orderId);
         markOrderReadyToShip(orderId);
         Timestamp originalUpdatedAt = updatedAt(orderId);
 
@@ -256,7 +349,8 @@ class OrderControllerIntegrationTest {
                 mockMvc.perform(post("/api/v1/orders/{id}/dispatch", orderId)),
                 orderId,
                 sellerId,
-                "DISPATCHED"
+                "DISPATCHED",
+                fulfillmentNodeId
         );
 
         assertPersistedStatusAndUpdatedAt(orderId, "DISPATCHED", originalUpdatedAt);
@@ -307,7 +401,7 @@ class OrderControllerIntegrationTest {
     void deliversDispatchedOrder() throws Exception {
         UUID sellerId = UUID.randomUUID();
         UUID orderId = createOrder(sellerId);
-        allocateOrder(orderId);
+        UUID fulfillmentNodeId = allocateOrder(orderId);
         markOrderReadyToShip(orderId);
         dispatchOrder(orderId);
         Timestamp originalUpdatedAt = updatedAt(orderId);
@@ -318,7 +412,8 @@ class OrderControllerIntegrationTest {
                 mockMvc.perform(post("/api/v1/orders/{id}/deliver", orderId)),
                 orderId,
                 sellerId,
-                "DELIVERED"
+                "DELIVERED",
+                fulfillmentNodeId
         );
 
         assertPersistedStatusAndUpdatedAt(orderId, "DELIVERED", originalUpdatedAt);
@@ -377,7 +472,8 @@ class OrderControllerIntegrationTest {
                 mockMvc.perform(post("/api/v1/orders/{id}/cancel", orderId)),
                 orderId,
                 sellerId,
-                "CANCELLED"
+                "CANCELLED",
+                null
         );
 
         assertPersistedStatusAndUpdatedAt(orderId, "CANCELLED", originalUpdatedAt);
@@ -451,14 +547,19 @@ class OrderControllerIntegrationTest {
             ResultActions resultActions,
             UUID orderId,
             UUID sellerId,
-            String status
+            String status,
+            UUID assignedFulfillmentNodeId
     ) throws Exception {
-        resultActions
+        ResultActions assertions = resultActions
                 .andExpect(status().isOk())
                 .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
                 .andExpect(jsonPath("$.id").value(orderId.toString()))
                 .andExpect(jsonPath("$.sellerId").value(sellerId.toString()))
                 .andExpect(jsonPath("$.status").value(status));
+
+        if (assignedFulfillmentNodeId != null) {
+            assertions.andExpect(jsonPath("$.assignedFulfillmentNodeId").value(assignedFulfillmentNodeId.toString()));
+        }
     }
 
     private void assertPersistedStatus(UUID orderId, String expectedStatus) {
@@ -468,6 +569,14 @@ class OrderControllerIntegrationTest {
     private void assertPersistedStatusAndUpdatedAt(UUID orderId, String expectedStatus, Timestamp originalUpdatedAt) {
         assertPersistedStatus(orderId, expectedStatus);
         assertTrue(updatedAt(orderId).toInstant().isAfter(originalUpdatedAt.toInstant()));
+    }
+
+    private UUID persistedFulfillmentNodeId(UUID orderId) {
+        return jdbcTemplate.queryForObject(
+                "select fulfillment_node_id from orders where id = ?",
+                UUID.class,
+                orderId
+        );
     }
 
     private String persistedStatus(UUID orderId) {
@@ -498,9 +607,47 @@ class OrderControllerIntegrationTest {
         );
     }
 
-    private void allocateOrder(UUID orderId) throws Exception {
-        mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId))
+    private void insertFulfillmentNode(
+            UUID fulfillmentNodeId,
+            String code,
+            String name,
+            int maxDailyCapacity,
+            boolean active
+    ) {
+        Instant now = Instant.now();
+        jdbcTemplate.update(
+                """
+                        insert into fulfillment_nodes
+                        (id, code, name, max_daily_capacity, active, created_at, updated_at)
+                        values (?, ?, ?, ?, ?, ?, ?)
+                        """,
+                fulfillmentNodeId,
+                code,
+                name,
+                maxDailyCapacity,
+                active,
+                Timestamp.from(now),
+                Timestamp.from(now)
+        );
+    }
+
+    private UUID createActiveFulfillmentNode() {
+        UUID fulfillmentNodeId = UUID.randomUUID();
+        insertFulfillmentNode(fulfillmentNodeId, "AR-BUE-%s".formatted(fulfillmentNodeId.toString().substring(0, 4)), "Buenos Aires Node 1", 100, true);
+        return fulfillmentNodeId;
+    }
+
+    private ResultActions allocateOrderRequest(UUID orderId, UUID fulfillmentNodeId) throws Exception {
+        return mockMvc.perform(post("/api/v1/orders/{id}/allocate", orderId)
+                .contentType(MediaType.APPLICATION_JSON)
+                .content("{\"fulfillmentNodeId\":\"%s\"}".formatted(fulfillmentNodeId)));
+    }
+
+    private UUID allocateOrder(UUID orderId) throws Exception {
+        UUID fulfillmentNodeId = createActiveFulfillmentNode();
+        allocateOrderRequest(orderId, fulfillmentNodeId)
                 .andExpect(status().isOk());
+        return fulfillmentNodeId;
     }
 
     private void markOrderReadyToShip(UUID orderId) throws Exception {
