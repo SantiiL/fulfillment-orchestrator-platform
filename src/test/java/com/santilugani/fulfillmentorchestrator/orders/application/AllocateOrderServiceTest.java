@@ -12,6 +12,9 @@ import com.santilugani.fulfillmentorchestrator.orders.domain.OrderStatus;
 import com.santilugani.fulfillmentorchestrator.orders.domain.SellerId;
 import org.junit.jupiter.api.Test;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
@@ -22,11 +25,14 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class AllocateOrderServiceTest {
 
+    private static final Instant ALLOCATION_INSTANT = Instant.parse("2026-06-28T10:15:30Z");
+    private static final Clock FIXED_CLOCK = Clock.fixed(ALLOCATION_INSTANT, ZoneOffset.UTC);
+
     @Test
-    void allocatesExistingCreatedOrderToActiveFulfillmentNode() {
+    void allowsAllocationWhenNodeCapacityIsAvailable() {
         TestOrderRepository orderRepository = new TestOrderRepository();
         TestAllocationFulfillmentNodeRepository fulfillmentNodeRepository = new TestAllocationFulfillmentNodeRepository();
-        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository);
+        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository, FIXED_CLOCK);
         Order order = new Order(OrderId.random(), SellerId.random());
         FulfillmentNodeId fulfillmentNodeId = FulfillmentNodeId.random();
         fulfillmentNodeRepository.store(new FulfillmentNode(fulfillmentNodeId, "AR-BUE-01", "Buenos Aires Node 1", 100));
@@ -40,13 +46,14 @@ class AllocateOrderServiceTest {
         assertEquals(order.getSellerId().value(), result.sellerId());
         assertEquals(OrderStatus.ALLOCATED, result.status());
         assertEquals(fulfillmentNodeId.value(), result.assignedFulfillmentNodeId());
+        assertEquals(ALLOCATION_INSTANT.atOffset(ZoneOffset.UTC), orderRepository.storedOrder(order.getId()).getAllocatedAt());
     }
 
     @Test
     void persistsUpdatedOrderAfterAllocation() {
         TestOrderRepository orderRepository = new TestOrderRepository();
         TestAllocationFulfillmentNodeRepository fulfillmentNodeRepository = new TestAllocationFulfillmentNodeRepository();
-        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository);
+        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository, FIXED_CLOCK);
         Order order = new Order(OrderId.random(), SellerId.random());
         FulfillmentNodeId fulfillmentNodeId = FulfillmentNodeId.random();
         fulfillmentNodeRepository.store(new FulfillmentNode(fulfillmentNodeId, "AR-BUE-01", "Buenos Aires Node 1", 100));
@@ -60,13 +67,73 @@ class AllocateOrderServiceTest {
                 fulfillmentNodeId.value(),
                 orderRepository.storedOrder(order.getId()).getAssignedFulfillmentNodeId().value()
         );
+        assertEquals(ALLOCATION_INSTANT.atOffset(ZoneOffset.UTC), orderRepository.storedOrder(order.getId()).getAllocatedAt());
+    }
+
+    @Test
+    void rejectsAllocationWhenNodeCapacityIsReached() {
+        TestOrderRepository orderRepository = new TestOrderRepository();
+        TestAllocationFulfillmentNodeRepository fulfillmentNodeRepository = new TestAllocationFulfillmentNodeRepository();
+        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository, FIXED_CLOCK);
+        FulfillmentNodeId fulfillmentNodeId = FulfillmentNodeId.random();
+        fulfillmentNodeRepository.store(new FulfillmentNode(fulfillmentNodeId, "AR-BUE-01", "Buenos Aires Node 1", 1));
+
+        Order existingAllocatedOrder = Order.reconstitute(
+                OrderId.random(),
+                SellerId.random(),
+                OrderStatus.ALLOCATED,
+                new AssignedFulfillmentNodeId(fulfillmentNodeId.value()),
+                ALLOCATION_INSTANT.minusSeconds(60).atOffset(ZoneOffset.UTC)
+        );
+        Order orderToAllocate = new Order(OrderId.random(), SellerId.random());
+        orderRepository.store(existingAllocatedOrder);
+        orderRepository.store(orderToAllocate);
+
+        FulfillmentNodeCapacityExceededException exception = assertThrows(
+                FulfillmentNodeCapacityExceededException.class,
+                () -> service.allocateOrder(
+                        new AllocateOrderCommand(orderToAllocate.getId(), new AssignedFulfillmentNodeId(fulfillmentNodeId.value()))
+                )
+        );
+
+        assertEquals(fulfillmentNodeId.value(), exception.getFulfillmentNodeId().value());
+        assertEquals(OrderStatus.CREATED, orderRepository.storedOrder(orderToAllocate.getId()).getStatus());
+        assertEquals(0, orderRepository.saveCount());
+    }
+
+    @Test
+    void ignoresLegacyAllocatedOrdersWithoutAllocationTimestamp() {
+        TestOrderRepository orderRepository = new TestOrderRepository();
+        TestAllocationFulfillmentNodeRepository fulfillmentNodeRepository = new TestAllocationFulfillmentNodeRepository();
+        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository, FIXED_CLOCK);
+        FulfillmentNodeId fulfillmentNodeId = FulfillmentNodeId.random();
+        fulfillmentNodeRepository.store(new FulfillmentNode(fulfillmentNodeId, "AR-BUE-01", "Buenos Aires Node 1", 1));
+
+        orderRepository.store(
+                Order.reconstitute(
+                        OrderId.random(),
+                        SellerId.random(),
+                        OrderStatus.ALLOCATED,
+                        new AssignedFulfillmentNodeId(fulfillmentNodeId.value())
+                )
+        );
+
+        Order orderToAllocate = new Order(OrderId.random(), SellerId.random());
+        orderRepository.store(orderToAllocate);
+
+        OrderResult result = service.allocateOrder(
+                new AllocateOrderCommand(orderToAllocate.getId(), new AssignedFulfillmentNodeId(fulfillmentNodeId.value()))
+        );
+
+        assertEquals(OrderStatus.ALLOCATED, result.status());
+        assertEquals(1, orderRepository.saveCount());
     }
 
     @Test
     void throwsWhenOrderDoesNotExist() {
         TestOrderRepository orderRepository = new TestOrderRepository();
         TestAllocationFulfillmentNodeRepository fulfillmentNodeRepository = new TestAllocationFulfillmentNodeRepository();
-        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository);
+        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository, FIXED_CLOCK);
         OrderId missingOrderId = OrderId.random();
         AssignedFulfillmentNodeId fulfillmentNodeId = new AssignedFulfillmentNodeId(UUID.randomUUID());
 
@@ -84,7 +151,7 @@ class AllocateOrderServiceTest {
         Order order = new Order(OrderId.random(), SellerId.random());
         orderRepository.store(order);
         TestAllocationFulfillmentNodeRepository fulfillmentNodeRepository = new TestAllocationFulfillmentNodeRepository();
-        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository);
+        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository, FIXED_CLOCK);
         AssignedFulfillmentNodeId fulfillmentNodeId = new AssignedFulfillmentNodeId(UUID.randomUUID());
 
         FulfillmentNodeNotFoundException exception = assertThrows(
@@ -100,7 +167,7 @@ class AllocateOrderServiceTest {
     void throwsWhenFulfillmentNodeIsInactive() {
         TestOrderRepository orderRepository = new TestOrderRepository();
         TestAllocationFulfillmentNodeRepository fulfillmentNodeRepository = new TestAllocationFulfillmentNodeRepository();
-        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository);
+        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository, FIXED_CLOCK);
         Order order = new Order(OrderId.random(), SellerId.random());
         FulfillmentNodeId fulfillmentNodeId = FulfillmentNodeId.random();
         fulfillmentNodeRepository.store(
@@ -123,7 +190,7 @@ class AllocateOrderServiceTest {
     void propagatesInvalidTransitionWhenOrderCannotBeAllocated() {
         TestOrderRepository orderRepository = new TestOrderRepository();
         TestAllocationFulfillmentNodeRepository fulfillmentNodeRepository = new TestAllocationFulfillmentNodeRepository();
-        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository);
+        AllocateOrderService service = new AllocateOrderService(orderRepository, fulfillmentNodeRepository, FIXED_CLOCK);
         Order order = new Order(OrderId.random(), SellerId.random());
         FulfillmentNodeId fulfillmentNodeId = FulfillmentNodeId.random();
         fulfillmentNodeRepository.store(new FulfillmentNode(fulfillmentNodeId, "AR-BUE-01", "Buenos Aires Node 1", 100));

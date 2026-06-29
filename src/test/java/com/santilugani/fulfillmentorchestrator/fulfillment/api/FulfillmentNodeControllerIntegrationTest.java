@@ -45,6 +45,7 @@ class FulfillmentNodeControllerIntegrationTest {
     @BeforeEach
     void setUp() {
         mockMvc = MockMvcBuilders.webAppContextSetup(webApplicationContext).build();
+        jdbcTemplate.update("delete from orders");
         jdbcTemplate.update("delete from fulfillment_nodes");
     }
 

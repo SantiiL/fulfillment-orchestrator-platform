@@ -2,6 +2,7 @@ package com.santilugani.fulfillmentorchestrator.orders.domain;
 
 import org.junit.jupiter.api.Test;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -21,24 +22,30 @@ class OrderTest {
         assertEquals(sellerId, order.getSellerId());
         assertEquals(OrderStatus.CREATED, order.getStatus());
         assertNull(order.getAssignedFulfillmentNodeId());
+        assertNull(order.getAllocatedAt());
     }
 
     @Test
-    void allocatesOrderFromCreatedAndAssignsFulfillmentNode() {
+    void allocatesOrderFromCreatedAndRecordsAllocationTime() {
         Order order = new Order(OrderId.random(), SellerId.random());
         AssignedFulfillmentNodeId fulfillmentNodeId = assignedFulfillmentNodeId();
+        OffsetDateTime allocatedAt = OffsetDateTime.parse("2026-06-28T10:15:30Z");
 
-        order.allocate(fulfillmentNodeId);
+        order.allocate(fulfillmentNodeId, allocatedAt);
 
         assertEquals(OrderStatus.ALLOCATED, order.getStatus());
         assertEquals(fulfillmentNodeId, order.getAssignedFulfillmentNodeId());
+        assertEquals(allocatedAt, order.getAllocatedAt());
     }
 
     @Test
     void rejectsAllocationWithoutFulfillmentNodeId() {
         Order order = new Order(OrderId.random(), SellerId.random());
 
-        NullPointerException exception = assertThrows(NullPointerException.class, () -> order.allocate(null));
+        NullPointerException exception = assertThrows(
+                NullPointerException.class,
+                () -> order.allocate(null, OffsetDateTime.parse("2026-06-28T10:15:30Z"))
+        );
 
         assertEquals("assignedFulfillmentNodeId must not be null", exception.getMessage());
     }
@@ -55,7 +62,7 @@ class OrderTest {
     @Test
     void marksOrderReadyToShipFromAllocated() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate(assignedFulfillmentNodeId());
+        order.allocate(assignedFulfillmentNodeId(), allocatedAt());
 
         order.markReadyToShip();
 
@@ -65,7 +72,7 @@ class OrderTest {
     @Test
     void cancelsOrderFromAllocated() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate(assignedFulfillmentNodeId());
+        order.allocate(assignedFulfillmentNodeId(), allocatedAt());
 
         order.cancel();
 
@@ -75,7 +82,7 @@ class OrderTest {
     @Test
     void dispatchesOrderFromReadyToShip() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate(assignedFulfillmentNodeId());
+        order.allocate(assignedFulfillmentNodeId(), allocatedAt());
         order.markReadyToShip();
 
         order.dispatch();
@@ -86,7 +93,7 @@ class OrderTest {
     @Test
     void cancelsOrderFromReadyToShip() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate(assignedFulfillmentNodeId());
+        order.allocate(assignedFulfillmentNodeId(), allocatedAt());
         order.markReadyToShip();
 
         order.cancel();
@@ -97,7 +104,7 @@ class OrderTest {
     @Test
     void deliversOrderFromDispatched() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate(assignedFulfillmentNodeId());
+        order.allocate(assignedFulfillmentNodeId(), allocatedAt());
         order.markReadyToShip();
         order.dispatch();
 
@@ -120,7 +127,7 @@ class OrderTest {
     @Test
     void deliveredOrderCannotTransitionAgain() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate(assignedFulfillmentNodeId());
+        order.allocate(assignedFulfillmentNodeId(), allocatedAt());
         order.markReadyToShip();
         order.dispatch();
         order.deliver();
@@ -133,10 +140,17 @@ class OrderTest {
         Order order = new Order(OrderId.random(), SellerId.random());
         order.cancel();
 
-        assertThrows(InvalidOrderStatusTransitionException.class, () -> order.allocate(assignedFulfillmentNodeId()));
+        assertThrows(
+                InvalidOrderStatusTransitionException.class,
+                () -> order.allocate(assignedFulfillmentNodeId(), allocatedAt())
+        );
     }
 
     private AssignedFulfillmentNodeId assignedFulfillmentNodeId() {
         return new AssignedFulfillmentNodeId(UUID.randomUUID());
+    }
+
+    private OffsetDateTime allocatedAt() {
+        return OffsetDateTime.parse("2026-06-28T10:15:30Z");
     }
 }

@@ -1,5 +1,6 @@
 package com.santilugani.fulfillmentorchestrator.orders.domain;
 
+import java.time.OffsetDateTime;
 import java.util.Objects;
 
 public final class Order {
@@ -10,13 +11,14 @@ public final class Order {
     private final SellerId sellerId;
     private OrderStatus status;
     private AssignedFulfillmentNodeId assignedFulfillmentNodeId;
+    private OffsetDateTime allocatedAt;
 
     public Order(OrderId id, SellerId sellerId) {
-        this(id, sellerId, OrderStatus.CREATED, null);
+        this(id, sellerId, OrderStatus.CREATED, null, null);
     }
 
     public static Order reconstitute(OrderId id, SellerId sellerId, OrderStatus status) {
-        return reconstitute(id, sellerId, status, null);
+        return reconstitute(id, sellerId, status, null, null);
     }
 
     public static Order reconstitute(
@@ -25,19 +27,31 @@ public final class Order {
             OrderStatus status,
             AssignedFulfillmentNodeId assignedFulfillmentNodeId
     ) {
-        return new Order(id, sellerId, status, assignedFulfillmentNodeId);
+        return reconstitute(id, sellerId, status, assignedFulfillmentNodeId, null);
+    }
+
+    public static Order reconstitute(
+            OrderId id,
+            SellerId sellerId,
+            OrderStatus status,
+            AssignedFulfillmentNodeId assignedFulfillmentNodeId,
+            OffsetDateTime allocatedAt
+    ) {
+        return new Order(id, sellerId, status, assignedFulfillmentNodeId, allocatedAt);
     }
 
     private Order(
             OrderId id,
             SellerId sellerId,
             OrderStatus status,
-            AssignedFulfillmentNodeId assignedFulfillmentNodeId
+            AssignedFulfillmentNodeId assignedFulfillmentNodeId,
+            OffsetDateTime allocatedAt
     ) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.sellerId = Objects.requireNonNull(sellerId, "sellerId must not be null");
         this.status = Objects.requireNonNull(status, "status must not be null");
         this.assignedFulfillmentNodeId = assignedFulfillmentNodeId;
+        this.allocatedAt = allocatedAt;
     }
 
     public OrderId getId() {
@@ -56,10 +70,21 @@ public final class Order {
         return assignedFulfillmentNodeId;
     }
 
-    public void allocate(AssignedFulfillmentNodeId assignedFulfillmentNodeId) {
+    public OffsetDateTime getAllocatedAt() {
+        return allocatedAt;
+    }
+
+    public void validateCanAllocate() {
+        LIFECYCLE_POLICY.validateTransition(status, OrderStatus.ALLOCATED);
+    }
+
+    public void allocate(AssignedFulfillmentNodeId assignedFulfillmentNodeId, OffsetDateTime allocatedAt) {
         Objects.requireNonNull(assignedFulfillmentNodeId, "assignedFulfillmentNodeId must not be null");
-        transitionTo(OrderStatus.ALLOCATED);
+        Objects.requireNonNull(allocatedAt, "allocatedAt must not be null");
+        validateCanAllocate();
+        this.status = OrderStatus.ALLOCATED;
         this.assignedFulfillmentNodeId = assignedFulfillmentNodeId;
+        this.allocatedAt = allocatedAt;
     }
 
     public void markReadyToShip() {

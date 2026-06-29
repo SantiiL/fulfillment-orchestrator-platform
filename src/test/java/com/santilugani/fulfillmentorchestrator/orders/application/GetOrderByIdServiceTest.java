@@ -7,6 +7,7 @@ import com.santilugani.fulfillmentorchestrator.orders.domain.OrderStatus;
 import com.santilugani.fulfillmentorchestrator.orders.domain.SellerId;
 import org.junit.jupiter.api.Test;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -36,7 +37,7 @@ class GetOrderByIdServiceTest {
         GetOrderByIdService service = new GetOrderByIdService(orderRepository);
         Order order = new Order(OrderId.random(), SellerId.random());
         AssignedFulfillmentNodeId fulfillmentNodeId = new AssignedFulfillmentNodeId(UUID.randomUUID());
-        order.allocate(fulfillmentNodeId);
+        order.allocate(fulfillmentNodeId, OffsetDateTime.parse("2026-06-28T10:15:30Z"));
         orderRepository.store(order);
 
         OrderResult result = service.getOrderById(new GetOrderByIdQuery(order.getId()));

@@ -37,6 +37,9 @@ public class OrderJpaEntity implements Persistable<UUID> {
     @Column(name = "fulfillment_node_id")
     private UUID fulfillmentNodeId;
 
+    @Column(name = "allocated_at")
+    private OffsetDateTime allocatedAt;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -46,11 +49,18 @@ public class OrderJpaEntity implements Persistable<UUID> {
     protected OrderJpaEntity() {
     }
 
-    private OrderJpaEntity(UUID id, UUID sellerId, OrderStatus status, UUID fulfillmentNodeId) {
+    private OrderJpaEntity(
+            UUID id,
+            UUID sellerId,
+            OrderStatus status,
+            UUID fulfillmentNodeId,
+            OffsetDateTime allocatedAt
+    ) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.sellerId = Objects.requireNonNull(sellerId, "sellerId must not be null");
         this.status = Objects.requireNonNull(status, "status must not be null");
         this.fulfillmentNodeId = fulfillmentNodeId;
+        this.allocatedAt = allocatedAt;
     }
 
     public static OrderJpaEntity fromDomain(Order order) {
@@ -58,7 +68,8 @@ public class OrderJpaEntity implements Persistable<UUID> {
                 order.getId().value(),
                 order.getSellerId().value(),
                 order.getStatus(),
-                order.getAssignedFulfillmentNodeId() == null ? null : order.getAssignedFulfillmentNodeId().value()
+                order.getAssignedFulfillmentNodeId() == null ? null : order.getAssignedFulfillmentNodeId().value(),
+                order.getAllocatedAt()
         );
     }
 
@@ -74,6 +85,7 @@ public class OrderJpaEntity implements Persistable<UUID> {
         fulfillmentNodeId = order.getAssignedFulfillmentNodeId() == null
                 ? null
                 : order.getAssignedFulfillmentNodeId().value();
+        allocatedAt = order.getAllocatedAt();
         return this;
     }
 
@@ -82,7 +94,8 @@ public class OrderJpaEntity implements Persistable<UUID> {
                 new OrderId(id),
                 new SellerId(sellerId),
                 status,
-                fulfillmentNodeId == null ? null : new AssignedFulfillmentNodeId(fulfillmentNodeId)
+                fulfillmentNodeId == null ? null : new AssignedFulfillmentNodeId(fulfillmentNodeId),
+                allocatedAt
         );
     }
 
