@@ -8,6 +8,7 @@ import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 class CreateOrderServiceTest {
 
@@ -22,6 +23,7 @@ class CreateOrderServiceTest {
         assertNotNull(result.id());
         assertEquals(sellerId, result.sellerId());
         assertEquals(OrderStatus.CREATED, result.status());
+        assertNull(result.assignedFulfillmentNodeId());
     }
 
     @Test
@@ -38,5 +40,6 @@ class CreateOrderServiceTest {
         assertEquals(result.id(), savedOrder.getId().value());
         assertEquals(sellerId, savedOrder.getSellerId().value());
         assertEquals(OrderStatus.CREATED, savedOrder.getStatus());
+        assertNull(savedOrder.getAssignedFulfillmentNodeId());
     }
 }

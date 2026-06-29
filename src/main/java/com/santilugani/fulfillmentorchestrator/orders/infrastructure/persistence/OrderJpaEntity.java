@@ -1,5 +1,6 @@
 package com.santilugani.fulfillmentorchestrator.orders.infrastructure.persistence;
 
+import com.santilugani.fulfillmentorchestrator.orders.domain.AssignedFulfillmentNodeId;
 import com.santilugani.fulfillmentorchestrator.orders.domain.Order;
 import com.santilugani.fulfillmentorchestrator.orders.domain.OrderId;
 import com.santilugani.fulfillmentorchestrator.orders.domain.OrderStatus;
@@ -33,6 +34,9 @@ public class OrderJpaEntity implements Persistable<UUID> {
     @Column(nullable = false, length = 50)
     private OrderStatus status;
 
+    @Column(name = "fulfillment_node_id")
+    private UUID fulfillmentNodeId;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -42,14 +46,20 @@ public class OrderJpaEntity implements Persistable<UUID> {
     protected OrderJpaEntity() {
     }
 
-    private OrderJpaEntity(UUID id, UUID sellerId, OrderStatus status) {
+    private OrderJpaEntity(UUID id, UUID sellerId, OrderStatus status, UUID fulfillmentNodeId) {
         this.id = Objects.requireNonNull(id, "id must not be null");
         this.sellerId = Objects.requireNonNull(sellerId, "sellerId must not be null");
         this.status = Objects.requireNonNull(status, "status must not be null");
+        this.fulfillmentNodeId = fulfillmentNodeId;
     }
 
     public static OrderJpaEntity fromDomain(Order order) {
-        return new OrderJpaEntity(order.getId().value(), order.getSellerId().value(), order.getStatus());
+        return new OrderJpaEntity(
+                order.getId().value(),
+                order.getSellerId().value(),
+                order.getStatus(),
+                order.getAssignedFulfillmentNodeId() == null ? null : order.getAssignedFulfillmentNodeId().value()
+        );
     }
 
     public OrderJpaEntity updateFromDomain(Order order) {
@@ -61,11 +71,19 @@ public class OrderJpaEntity implements Persistable<UUID> {
 
         sellerId = order.getSellerId().value();
         status = order.getStatus();
+        fulfillmentNodeId = order.getAssignedFulfillmentNodeId() == null
+                ? null
+                : order.getAssignedFulfillmentNodeId().value();
         return this;
     }
 
     public Order toDomain() {
-        return Order.reconstitute(new OrderId(id), new SellerId(sellerId), status);
+        return Order.reconstitute(
+                new OrderId(id),
+                new SellerId(sellerId),
+                status,
+                fulfillmentNodeId == null ? null : new AssignedFulfillmentNodeId(fulfillmentNodeId)
+        );
     }
 
     @Override

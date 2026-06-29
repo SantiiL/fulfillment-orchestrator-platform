@@ -15,6 +15,7 @@ import com.santilugani.fulfillmentorchestrator.orders.application.GetOrderByIdUs
 import com.santilugani.fulfillmentorchestrator.orders.application.MarkOrderReadyToShipCommand;
 import com.santilugani.fulfillmentorchestrator.orders.application.MarkOrderReadyToShipUseCase;
 import com.santilugani.fulfillmentorchestrator.orders.application.OrderResult;
+import com.santilugani.fulfillmentorchestrator.orders.domain.AssignedFulfillmentNodeId;
 import com.santilugani.fulfillmentorchestrator.orders.domain.OrderId;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
@@ -65,55 +66,65 @@ public class OrderController {
     }
 
     @PostMapping
-    public ResponseEntity<CreateOrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
+    public ResponseEntity<OrderResponse> createOrder(@Valid @RequestBody CreateOrderRequest request) {
         OrderResult result = createOrderUseCase.createOrder(new CreateOrderCommand(request.sellerIdAsUuid()));
 
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(new CreateOrderResponse(result.id(), result.sellerId(), result.status()));
+                .body(new OrderResponse(
+                        result.id(),
+                        result.sellerId(),
+                        result.status(),
+                        result.assignedFulfillmentNodeId()
+                ));
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<GetOrderResponse> getOrderById(@PathVariable String id) {
+    public ResponseEntity<OrderResponse> getOrderById(@PathVariable String id) {
         OrderResult result = getOrderByIdUseCase.getOrderById(new GetOrderByIdQuery(parseOrderId(id)));
 
-        return ResponseEntity.ok(toGetOrderResponse(result));
+        return ResponseEntity.ok(toOrderResponse(result));
     }
 
     @PostMapping("/{id}/allocate")
-    public ResponseEntity<GetOrderResponse> allocateOrder(@PathVariable String id) {
-        OrderResult result = allocateOrderUseCase.allocateOrder(new AllocateOrderCommand(parseOrderId(id)));
+    public ResponseEntity<OrderResponse> allocateOrder(
+            @PathVariable String id,
+            @RequestBody(required = false) AllocateOrderRequest request
+    ) {
+        OrderResult result = allocateOrderUseCase.allocateOrder(
+                new AllocateOrderCommand(parseOrderId(id), parseFulfillmentNodeId(request))
+        );
 
-        return ResponseEntity.ok(toGetOrderResponse(result));
+        return ResponseEntity.ok(toOrderResponse(result));
     }
 
     @PostMapping("/{id}/ready-to-ship")
-    public ResponseEntity<GetOrderResponse> markOrderReadyToShip(@PathVariable String id) {
+    public ResponseEntity<OrderResponse> markOrderReadyToShip(@PathVariable String id) {
         OrderResult result = markOrderReadyToShipUseCase.markOrderReadyToShip(
                 new MarkOrderReadyToShipCommand(parseOrderId(id))
         );
 
-        return ResponseEntity.ok(toGetOrderResponse(result));
+        return ResponseEntity.ok(toOrderResponse(result));
     }
 
     @PostMapping("/{id}/dispatch")
-    public ResponseEntity<GetOrderResponse> dispatchOrder(@PathVariable String id) {
+    public ResponseEntity<OrderResponse> dispatchOrder(@PathVariable String id) {
         OrderResult result = dispatchOrderUseCase.dispatchOrder(new DispatchOrderCommand(parseOrderId(id)));
 
-        return ResponseEntity.ok(toGetOrderResponse(result));
+        return ResponseEntity.ok(toOrderResponse(result));
     }
 
     @PostMapping("/{id}/deliver")
-    public ResponseEntity<GetOrderResponse> deliverOrder(@PathVariable String id) {
+    public ResponseEntity<OrderResponse> deliverOrder(@PathVariable String id) {
         OrderResult result = deliverOrderUseCase.deliverOrder(new DeliverOrderCommand(parseOrderId(id)));
 
-        return ResponseEntity.ok(toGetOrderResponse(result));
+        return ResponseEntity.ok(toOrderResponse(result));
     }
 
     @PostMapping("/{id}/cancel")
-    public ResponseEntity<GetOrderResponse> cancelOrder(@PathVariable String id) {
+    public ResponseEntity<OrderResponse> cancelOrder(@PathVariable String id) {
         OrderResult result = cancelOrderUseCase.cancelOrder(new CancelOrderCommand(parseOrderId(id)));
 
-        return ResponseEntity.ok(toGetOrderResponse(result));
+        return ResponseEntity.ok(toOrderResponse(result));
     }
 
     private OrderId parseOrderId(String id) {
@@ -124,7 +135,24 @@ public class OrderController {
         }
     }
 
-    private GetOrderResponse toGetOrderResponse(OrderResult result) {
-        return new GetOrderResponse(result.id(), result.sellerId(), result.status());
+    private AssignedFulfillmentNodeId parseFulfillmentNodeId(AllocateOrderRequest request) {
+        if (request == null || request.fulfillmentNodeId() == null || request.fulfillmentNodeId().isBlank()) {
+            throw new MissingFulfillmentNodeIdException();
+        }
+
+        try {
+            return AssignedFulfillmentNodeId.from(request.fulfillmentNodeId());
+        } catch (IllegalArgumentException exception) {
+            throw new InvalidFulfillmentNodeIdException(request.fulfillmentNodeId());
+        }
+    }
+
+    private OrderResponse toOrderResponse(OrderResult result) {
+        return new OrderResponse(
+                result.id(),
+                result.sellerId(),
+                result.status(),
+                result.assignedFulfillmentNodeId()
+        );
     }
 }

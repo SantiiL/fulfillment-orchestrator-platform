@@ -4,5 +4,10 @@ import com.santilugani.fulfillmentorchestrator.orders.domain.OrderStatus;
 
 import java.util.UUID;
 
-public record CreateOrderResponse(UUID id, UUID sellerId, OrderStatus status) {
+public record OrderResponse(
+        UUID id,
+        UUID sellerId,
+        OrderStatus status,
+        UUID assignedFulfillmentNodeId
+) {
 }

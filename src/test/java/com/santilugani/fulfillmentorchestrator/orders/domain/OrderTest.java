@@ -2,7 +2,10 @@ package com.santilugani.fulfillmentorchestrator.orders.domain;
 
 import org.junit.jupiter.api.Test;
 
+import java.util.UUID;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class OrderTest {
@@ -17,15 +20,27 @@ class OrderTest {
         assertEquals(orderId, order.getId());
         assertEquals(sellerId, order.getSellerId());
         assertEquals(OrderStatus.CREATED, order.getStatus());
+        assertNull(order.getAssignedFulfillmentNodeId());
     }
 
     @Test
-    void allocatesOrderFromCreated() {
+    void allocatesOrderFromCreatedAndAssignsFulfillmentNode() {
         Order order = new Order(OrderId.random(), SellerId.random());
+        AssignedFulfillmentNodeId fulfillmentNodeId = assignedFulfillmentNodeId();
 
-        order.allocate();
+        order.allocate(fulfillmentNodeId);
 
         assertEquals(OrderStatus.ALLOCATED, order.getStatus());
+        assertEquals(fulfillmentNodeId, order.getAssignedFulfillmentNodeId());
+    }
+
+    @Test
+    void rejectsAllocationWithoutFulfillmentNodeId() {
+        Order order = new Order(OrderId.random(), SellerId.random());
+
+        NullPointerException exception = assertThrows(NullPointerException.class, () -> order.allocate(null));
+
+        assertEquals("assignedFulfillmentNodeId must not be null", exception.getMessage());
     }
 
     @Test
@@ -40,7 +55,7 @@ class OrderTest {
     @Test
     void marksOrderReadyToShipFromAllocated() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate();
+        order.allocate(assignedFulfillmentNodeId());
 
         order.markReadyToShip();
 
@@ -50,7 +65,7 @@ class OrderTest {
     @Test
     void cancelsOrderFromAllocated() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate();
+        order.allocate(assignedFulfillmentNodeId());
 
         order.cancel();
 
@@ -60,7 +75,7 @@ class OrderTest {
     @Test
     void dispatchesOrderFromReadyToShip() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate();
+        order.allocate(assignedFulfillmentNodeId());
         order.markReadyToShip();
 
         order.dispatch();
@@ -71,7 +86,7 @@ class OrderTest {
     @Test
     void cancelsOrderFromReadyToShip() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate();
+        order.allocate(assignedFulfillmentNodeId());
         order.markReadyToShip();
 
         order.cancel();
@@ -82,7 +97,7 @@ class OrderTest {
     @Test
     void deliversOrderFromDispatched() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate();
+        order.allocate(assignedFulfillmentNodeId());
         order.markReadyToShip();
         order.dispatch();
 
@@ -105,7 +120,7 @@ class OrderTest {
     @Test
     void deliveredOrderCannotTransitionAgain() {
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate();
+        order.allocate(assignedFulfillmentNodeId());
         order.markReadyToShip();
         order.dispatch();
         order.deliver();
@@ -118,6 +133,10 @@ class OrderTest {
         Order order = new Order(OrderId.random(), SellerId.random());
         order.cancel();
 
-        assertThrows(InvalidOrderStatusTransitionException.class, order::allocate);
+        assertThrows(InvalidOrderStatusTransitionException.class, () -> order.allocate(assignedFulfillmentNodeId()));
+    }
+
+    private AssignedFulfillmentNodeId assignedFulfillmentNodeId() {
+        return new AssignedFulfillmentNodeId(UUID.randomUUID());
     }
 }
