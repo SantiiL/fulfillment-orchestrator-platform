@@ -1,5 +1,6 @@
 package com.santilugani.fulfillmentorchestrator.orders.api;
 
+import com.santilugani.fulfillmentorchestrator.orders.application.FulfillmentNodeCapacityExceededException;
 import com.santilugani.fulfillmentorchestrator.fulfillment.application.FulfillmentNodeNotFoundException;
 import com.santilugani.fulfillmentorchestrator.orders.application.FulfillmentNodeInactiveException;
 import com.santilugani.fulfillmentorchestrator.orders.application.OrderNotFoundException;
@@ -89,6 +90,19 @@ public class OrderApiExceptionHandler {
         return buildErrorResponse(
                 HttpStatus.CONFLICT,
                 "FULFILLMENT_NODE_INACTIVE",
+                exception.getMessage(),
+                request.getRequestURI()
+        );
+    }
+
+    @ExceptionHandler(FulfillmentNodeCapacityExceededException.class)
+    public ResponseEntity<ApiErrorResponse> handleFulfillmentNodeCapacityExceeded(
+            FulfillmentNodeCapacityExceededException exception,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(
+                HttpStatus.CONFLICT,
+                "FULFILLMENT_NODE_CAPACITY_EXCEEDED",
                 exception.getMessage(),
                 request.getRequestURI()
         );

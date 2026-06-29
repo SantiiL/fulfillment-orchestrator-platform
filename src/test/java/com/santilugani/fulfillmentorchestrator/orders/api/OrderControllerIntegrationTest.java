@@ -68,7 +68,7 @@ class OrderControllerIntegrationTest {
         UUID orderId = extractOrderId(result.getResponse().getContentAsString());
 
         Map<String, Object> persistedOrder = jdbcTemplate.queryForMap(
-                "select id, seller_id, status, fulfillment_node_id, created_at, updated_at from orders where id = ?",
+                "select id, seller_id, status, fulfillment_node_id, allocated_at, created_at, updated_at from orders where id = ?",
                 orderId
         );
 
@@ -76,6 +76,7 @@ class OrderControllerIntegrationTest {
         assertEquals(sellerId, persistedOrder.get("seller_id"));
         assertEquals("CREATED", persistedOrder.get("status"));
         assertNull(persistedOrder.get("fulfillment_node_id"));
+        assertNull(persistedOrder.get("allocated_at"));
         assertNotNull(persistedOrder.get("created_at"));
         assertNotNull(persistedOrder.get("updated_at"));
     }
@@ -156,6 +157,7 @@ class OrderControllerIntegrationTest {
 
         assertPersistedStatusAndUpdatedAt(orderId, "ALLOCATED", originalUpdatedAt);
         assertEquals(fulfillmentNodeId, persistedFulfillmentNodeId(orderId));
+        assertNotNull(persistedAllocatedAt(orderId));
     }
 
     @Test
@@ -272,6 +274,36 @@ class OrderControllerIntegrationTest {
         );
 
         assertPersistedStatus(orderId, "CANCELLED");
+    }
+
+    @Test
+    void returnsConflictWhenFulfillmentNodeDailyCapacityIsReached() throws Exception {
+        UUID fulfillmentNodeId = createActiveFulfillmentNode(1);
+        UUID firstSellerId = UUID.randomUUID();
+        UUID firstOrderId = createOrder(firstSellerId);
+        UUID secondOrderId = createOrder(UUID.randomUUID());
+
+        assertOrderResponse(
+                allocateOrderRequest(firstOrderId, fulfillmentNodeId),
+                firstOrderId,
+                firstSellerId,
+                "ALLOCATED",
+                fulfillmentNodeId
+        );
+
+        assertOrderApiError(
+                allocateOrderRequest(secondOrderId, fulfillmentNodeId),
+                409,
+                "FULFILLMENT_NODE_CAPACITY_EXCEEDED",
+                "Fulfillment node daily capacity has been reached",
+                "/api/v1/orders/%s/allocate".formatted(secondOrderId)
+        );
+
+        assertEquals(fulfillmentNodeId, persistedFulfillmentNodeId(firstOrderId));
+        assertNotNull(persistedAllocatedAt(firstOrderId));
+        assertEquals("CREATED", persistedStatus(secondOrderId));
+        assertNull(persistedFulfillmentNodeId(secondOrderId));
+        assertNull(persistedAllocatedAt(secondOrderId));
     }
 
     @Test
@@ -579,6 +611,14 @@ class OrderControllerIntegrationTest {
         );
     }
 
+    private Timestamp persistedAllocatedAt(UUID orderId) {
+        return jdbcTemplate.queryForObject(
+                "select allocated_at from orders where id = ?",
+                Timestamp.class,
+                orderId
+        );
+    }
+
     private String persistedStatus(UUID orderId) {
         return jdbcTemplate.queryForObject(
                 "select status from orders where id = ?",
@@ -632,8 +672,18 @@ class OrderControllerIntegrationTest {
     }
 
     private UUID createActiveFulfillmentNode() {
+        return createActiveFulfillmentNode(100);
+    }
+
+    private UUID createActiveFulfillmentNode(int maxDailyCapacity) {
         UUID fulfillmentNodeId = UUID.randomUUID();
-        insertFulfillmentNode(fulfillmentNodeId, "AR-BUE-%s".formatted(fulfillmentNodeId.toString().substring(0, 4)), "Buenos Aires Node 1", 100, true);
+        insertFulfillmentNode(
+                fulfillmentNodeId,
+                "AR-BUE-%s".formatted(fulfillmentNodeId.toString().substring(0, 4)),
+                "Buenos Aires Node 1",
+                maxDailyCapacity,
+                true
+        );
         return fulfillmentNodeId;
     }
 

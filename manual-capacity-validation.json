@@ -1,0 +1,341 @@
+﻿{
+    "generatedAt":  "2026-06-28T23:04:00.7807258-03:00",
+    "baseUrl":  "http://localhost:8080",
+    "nodeCode":  "AR-BUE-CAP-20260628230400",
+    "ids":  {
+                "FULFILLMENT_NODE_ID":  "ddcc8c03-97ca-490b-af67-56bdcf56c258",
+                "ORDER_1_ID":  "128bcb6d-1687-4e5f-8685-aec293482236",
+                "ORDER_2_ID":  "b2f62e71-3a7b-4e9b-ad7a-b9d38a6a4e51",
+                "ORDER_3_ID":  "ad2aa45f-054f-4abe-95b4-d01930ac2500",
+                "ORDER_4_ID":  "4ba4f970-f136-4ad2-8f13-42cf19ddca02"
+            },
+    "results":  [
+                    {
+                        "step":  1,
+                        "name":  "Create fulfillment node with capacity 1",
+                        "method":  "POST",
+                        "path":  "/api/v1/fulfillment-nodes",
+                        "expectedStatus":  201,
+                        "actualStatus":  201,
+                        "expectedCode":  null,
+                        "actualCode":  "AR-BUE-CAP-20260628230400",
+                        "pass":  true,
+                        "responseBody":  {
+                                             "id":  "ddcc8c03-97ca-490b-af67-56bdcf56c258",
+                                             "code":  "AR-BUE-CAP-20260628230400",
+                                             "name":  "Buenos Aires Capacity Node",
+                                             "maxDailyCapacity":  1,
+                                             "active":  true
+                                         }
+                    },
+                    {
+                        "step":  2,
+                        "name":  "List fulfillment nodes",
+                        "method":  "GET",
+                        "path":  "/api/v1/fulfillment-nodes",
+                        "expectedStatus":  200,
+                        "actualStatus":  200,
+                        "expectedCode":  null,
+                        "actualCode":  null,
+                        "pass":  true,
+                        "responseBody":  {
+                                             "value":  [
+                                                           {
+                                                               "id":  "40ddca2e-1f39-4243-8344-32d3b2f6587c",
+                                                               "code":  "AR-BUE-01",
+                                                               "name":  "Buenos Aires Node 1",
+                                                               "maxDailyCapacity":  100,
+                                                               "active":  true
+                                                           },
+                                                           {
+                                                               "id":  "24504354-3c55-47a5-b7fc-89d8df7efed3",
+                                                               "code":  "AR-BUE-CAP-01",
+                                                               "name":  "Buenos Aires Capacity Node 1",
+                                                               "maxDailyCapacity":  1,
+                                                               "active":  true
+                                                           },
+                                                           {
+                                                               "id":  "672fa0d2-7252-44cd-b828-07212255635d",
+                                                               "code":  "AR-BUE-CAP-20260628225804",
+                                                               "name":  "Buenos Aires Capacity Node",
+                                                               "maxDailyCapacity":  1,
+                                                               "active":  true
+                                                           },
+                                                           {
+                                                               "id":  "8caedf5b-e60d-4219-91af-c5bba784fb0e",
+                                                               "code":  "AR-BUE-CAP-20260628225909",
+                                                               "name":  "Buenos Aires Capacity Node",
+                                                               "maxDailyCapacity":  1,
+                                                               "active":  true
+                                                           },
+                                                           {
+                                                               "id":  "801fb95c-ca11-40de-975c-1e8a2e9fcd50",
+                                                               "code":  "AR-BUE-CAP-20260628230126",
+                                                               "name":  "Buenos Aires Capacity Node",
+                                                               "maxDailyCapacity":  1,
+                                                               "active":  true
+                                                           },
+                                                           {
+                                                               "id":  "602c6a93-e6e1-4033-ac6f-2dd60361ab38",
+                                                               "code":  "AR-BUE-CAP-20260628230227",
+                                                               "name":  "Buenos Aires Capacity Node",
+                                                               "maxDailyCapacity":  1,
+                                                               "active":  true
+                                                           },
+                                                           {
+                                                               "id":  "ddcc8c03-97ca-490b-af67-56bdcf56c258",
+                                                               "code":  "AR-BUE-CAP-20260628230400",
+                                                               "name":  "Buenos Aires Capacity Node",
+                                                               "maxDailyCapacity":  1,
+                                                               "active":  true
+                                                           }
+                                                       ],
+                                             "Count":  7
+                                         }
+                    },
+                    {
+                        "step":  3,
+                        "name":  "Create first order",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders",
+                        "expectedStatus":  201,
+                        "actualStatus":  201,
+                        "expectedCode":  null,
+                        "actualCode":  null,
+                        "pass":  true,
+                        "responseBody":  {
+                                             "id":  "128bcb6d-1687-4e5f-8685-aec293482236",
+                                             "sellerId":  "11111111-1111-1111-1111-111111111111",
+                                             "status":  "CREATED",
+                                             "assignedFulfillmentNodeId":  null
+                                         }
+                    },
+                    {
+                        "step":  4,
+                        "name":  "Allocate first order to fulfillment node",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders/128bcb6d-1687-4e5f-8685-aec293482236/allocate",
+                        "expectedStatus":  200,
+                        "actualStatus":  200,
+                        "expectedCode":  null,
+                        "actualCode":  null,
+                        "pass":  true,
+                        "responseBody":  {
+                                             "id":  "128bcb6d-1687-4e5f-8685-aec293482236",
+                                             "sellerId":  "11111111-1111-1111-1111-111111111111",
+                                             "status":  "ALLOCATED",
+                                             "assignedFulfillmentNodeId":  "ddcc8c03-97ca-490b-af67-56bdcf56c258"
+                                         }
+                    },
+                    {
+                        "step":  5,
+                        "name":  "Get first order after allocation",
+                        "method":  "GET",
+                        "path":  "/api/v1/orders/128bcb6d-1687-4e5f-8685-aec293482236",
+                        "expectedStatus":  200,
+                        "actualStatus":  200,
+                        "expectedCode":  null,
+                        "actualCode":  null,
+                        "pass":  true,
+                        "responseBody":  {
+                                             "id":  "128bcb6d-1687-4e5f-8685-aec293482236",
+                                             "sellerId":  "11111111-1111-1111-1111-111111111111",
+                                             "status":  "ALLOCATED",
+                                             "assignedFulfillmentNodeId":  "ddcc8c03-97ca-490b-af67-56bdcf56c258"
+                                         }
+                    },
+                    {
+                        "step":  6,
+                        "name":  "Create second order",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders",
+                        "expectedStatus":  201,
+                        "actualStatus":  201,
+                        "expectedCode":  null,
+                        "actualCode":  null,
+                        "pass":  true,
+                        "responseBody":  {
+                                             "id":  "b2f62e71-3a7b-4e9b-ad7a-b9d38a6a4e51",
+                                             "sellerId":  "22222222-2222-2222-2222-222222222222",
+                                             "status":  "CREATED",
+                                             "assignedFulfillmentNodeId":  null
+                                         }
+                    },
+                    {
+                        "step":  7,
+                        "name":  "Allocate second order to same node at full capacity",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders/b2f62e71-3a7b-4e9b-ad7a-b9d38a6a4e51/allocate",
+                        "expectedStatus":  409,
+                        "actualStatus":  409,
+                        "expectedCode":  "FULFILLMENT_NODE_CAPACITY_EXCEEDED",
+                        "actualCode":  "FULFILLMENT_NODE_CAPACITY_EXCEEDED",
+                        "pass":  true,
+                        "responseBody":  {
+                                             "status":  409,
+                                             "code":  "FULFILLMENT_NODE_CAPACITY_EXCEEDED",
+                                             "message":  "Fulfillment node daily capacity has been reached",
+                                             "path":  "/api/v1/orders/b2f62e71-3a7b-4e9b-ad7a-b9d38a6a4e51/allocate",
+                                             "timestamp":  "2026-06-29T02:04:00.6652387Z"
+                                         }
+                    },
+                    {
+                        "step":  8,
+                        "name":  "Mark first order ready to ship",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders/128bcb6d-1687-4e5f-8685-aec293482236/ready-to-ship",
+                        "expectedStatus":  200,
+                        "actualStatus":  200,
+                        "expectedCode":  null,
+                        "actualCode":  null,
+                        "pass":  true,
+                        "responseBody":  {
+                                             "id":  "128bcb6d-1687-4e5f-8685-aec293482236",
+                                             "sellerId":  "11111111-1111-1111-1111-111111111111",
+                                             "status":  "READY_TO_SHIP",
+                                             "assignedFulfillmentNodeId":  "ddcc8c03-97ca-490b-af67-56bdcf56c258"
+                                         }
+                    },
+                    {
+                        "step":  9,
+                        "name":  "Dispatch first order",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders/128bcb6d-1687-4e5f-8685-aec293482236/dispatch",
+                        "expectedStatus":  200,
+                        "actualStatus":  200,
+                        "expectedCode":  null,
+                        "actualCode":  null,
+                        "pass":  true,
+                        "responseBody":  {
+                                             "id":  "128bcb6d-1687-4e5f-8685-aec293482236",
+                                             "sellerId":  "11111111-1111-1111-1111-111111111111",
+                                             "status":  "DISPATCHED",
+                                             "assignedFulfillmentNodeId":  "ddcc8c03-97ca-490b-af67-56bdcf56c258"
+                                         }
+                    },
+                    {
+                        "step":  10,
+                        "name":  "Deliver first order",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders/128bcb6d-1687-4e5f-8685-aec293482236/deliver",
+                        "expectedStatus":  200,
+                        "actualStatus":  200,
+                        "expectedCode":  null,
+                        "actualCode":  null,
+                        "pass":  true,
+                        "responseBody":  {
+                                             "id":  "128bcb6d-1687-4e5f-8685-aec293482236",
+                                             "sellerId":  "11111111-1111-1111-1111-111111111111",
+                                             "status":  "DELIVERED",
+                                             "assignedFulfillmentNodeId":  "ddcc8c03-97ca-490b-af67-56bdcf56c258"
+                                         }
+                    },
+                    {
+                        "step":  11,
+                        "name":  "Allocate delivered order again",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders/128bcb6d-1687-4e5f-8685-aec293482236/allocate",
+                        "expectedStatus":  409,
+                        "actualStatus":  409,
+                        "expectedCode":  "INVALID_ORDER_STATUS_TRANSITION",
+                        "actualCode":  "INVALID_ORDER_STATUS_TRANSITION",
+                        "pass":  true,
+                        "responseBody":  {
+                                             "status":  409,
+                                             "code":  "INVALID_ORDER_STATUS_TRANSITION",
+                                             "message":  "Cannot transition order status from DELIVERED to ALLOCATED",
+                                             "path":  "/api/v1/orders/128bcb6d-1687-4e5f-8685-aec293482236/allocate",
+                                             "timestamp":  "2026-06-29T02:04:00.7273745Z"
+                                         }
+                    },
+                    {
+                        "step":  12,
+                        "name":  "Create third order",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders",
+                        "expectedStatus":  201,
+                        "actualStatus":  201,
+                        "expectedCode":  null,
+                        "actualCode":  null,
+                        "pass":  true,
+                        "responseBody":  {
+                                             "id":  "ad2aa45f-054f-4abe-95b4-d01930ac2500",
+                                             "sellerId":  "33333333-3333-3333-3333-333333333333",
+                                             "status":  "CREATED",
+                                             "assignedFulfillmentNodeId":  null
+                                         }
+                    },
+                    {
+                        "step":  13,
+                        "name":  "Allocate with missing fulfillmentNodeId",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders/ad2aa45f-054f-4abe-95b4-d01930ac2500/allocate",
+                        "expectedStatus":  400,
+                        "actualStatus":  400,
+                        "expectedCode":  "MISSING_FULFILLMENT_NODE_ID",
+                        "actualCode":  "MISSING_FULFILLMENT_NODE_ID",
+                        "pass":  true,
+                        "responseBody":  {
+                                             "status":  400,
+                                             "code":  "MISSING_FULFILLMENT_NODE_ID",
+                                             "message":  "fulfillmentNodeId is required",
+                                             "path":  "/api/v1/orders/ad2aa45f-054f-4abe-95b4-d01930ac2500/allocate",
+                                             "timestamp":  "2026-06-29T02:04:00.7471455Z"
+                                         }
+                    },
+                    {
+                        "step":  14,
+                        "name":  "Allocate with invalid fulfillmentNodeId",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders/ad2aa45f-054f-4abe-95b4-d01930ac2500/allocate",
+                        "expectedStatus":  400,
+                        "actualStatus":  400,
+                        "expectedCode":  "INVALID_FULFILLMENT_NODE_ID",
+                        "actualCode":  "INVALID_FULFILLMENT_NODE_ID",
+                        "pass":  true,
+                        "responseBody":  {
+                                             "status":  400,
+                                             "code":  "INVALID_FULFILLMENT_NODE_ID",
+                                             "message":  "Fulfillment node id must be a valid UUID",
+                                             "path":  "/api/v1/orders/ad2aa45f-054f-4abe-95b4-d01930ac2500/allocate",
+                                             "timestamp":  "2026-06-29T02:04:00.7531064Z"
+                                         }
+                    },
+                    {
+                        "step":  15,
+                        "name":  "Create fourth order",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders",
+                        "expectedStatus":  201,
+                        "actualStatus":  201,
+                        "expectedCode":  null,
+                        "actualCode":  null,
+                        "pass":  true,
+                        "responseBody":  {
+                                             "id":  "4ba4f970-f136-4ad2-8f13-42cf19ddca02",
+                                             "sellerId":  "44444444-4444-4444-4444-444444444444",
+                                             "status":  "CREATED",
+                                             "assignedFulfillmentNodeId":  null
+                                         }
+                    },
+                    {
+                        "step":  16,
+                        "name":  "Allocate with missing fulfillment node",
+                        "method":  "POST",
+                        "path":  "/api/v1/orders/4ba4f970-f136-4ad2-8f13-42cf19ddca02/allocate",
+                        "expectedStatus":  404,
+                        "actualStatus":  404,
+                        "expectedCode":  "FULFILLMENT_NODE_NOT_FOUND",
+                        "actualCode":  "FULFILLMENT_NODE_NOT_FOUND",
+                        "pass":  true,
+                        "responseBody":  {
+                                             "status":  404,
+                                             "code":  "FULFILLMENT_NODE_NOT_FOUND",
+                                             "message":  "Fulfillment node was not found",
+                                             "path":  "/api/v1/orders/4ba4f970-f136-4ad2-8f13-42cf19ddca02/allocate",
+                                             "timestamp":  "2026-06-29T02:04:00.7785518Z"
+                                         }
+                    }
+                ],
+    "allPassed":  true
+}

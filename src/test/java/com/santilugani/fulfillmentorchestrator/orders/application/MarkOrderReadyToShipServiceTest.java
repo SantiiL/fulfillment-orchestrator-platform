@@ -8,6 +8,7 @@ import com.santilugani.fulfillmentorchestrator.orders.domain.OrderStatus;
 import com.santilugani.fulfillmentorchestrator.orders.domain.SellerId;
 import org.junit.jupiter.api.Test;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -20,7 +21,7 @@ class MarkOrderReadyToShipServiceTest {
         TestOrderRepository orderRepository = new TestOrderRepository();
         MarkOrderReadyToShipService service = new MarkOrderReadyToShipService(orderRepository);
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate(new AssignedFulfillmentNodeId(UUID.randomUUID()));
+        order.allocate(new AssignedFulfillmentNodeId(UUID.randomUUID()), OffsetDateTime.parse("2026-06-28T10:15:30Z"));
         orderRepository.store(order);
 
         OrderResult result = service.markOrderReadyToShip(new MarkOrderReadyToShipCommand(order.getId()));
@@ -35,7 +36,7 @@ class MarkOrderReadyToShipServiceTest {
         TestOrderRepository orderRepository = new TestOrderRepository();
         MarkOrderReadyToShipService service = new MarkOrderReadyToShipService(orderRepository);
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate(new AssignedFulfillmentNodeId(UUID.randomUUID()));
+        order.allocate(new AssignedFulfillmentNodeId(UUID.randomUUID()), OffsetDateTime.parse("2026-06-28T10:15:30Z"));
         orderRepository.store(order);
 
         service.markOrderReadyToShip(new MarkOrderReadyToShipCommand(order.getId()));

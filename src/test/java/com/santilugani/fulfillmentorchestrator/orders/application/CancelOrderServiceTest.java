@@ -8,6 +8,7 @@ import com.santilugani.fulfillmentorchestrator.orders.domain.OrderStatus;
 import com.santilugani.fulfillmentorchestrator.orders.domain.SellerId;
 import org.junit.jupiter.api.Test;
 
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -61,7 +62,7 @@ class CancelOrderServiceTest {
         TestOrderRepository orderRepository = new TestOrderRepository();
         CancelOrderService service = new CancelOrderService(orderRepository);
         Order order = new Order(OrderId.random(), SellerId.random());
-        order.allocate(new AssignedFulfillmentNodeId(UUID.randomUUID()));
+        order.allocate(new AssignedFulfillmentNodeId(UUID.randomUUID()), OffsetDateTime.parse("2026-06-28T10:15:30Z"));
         order.markReadyToShip();
         order.dispatch();
         order.deliver();
