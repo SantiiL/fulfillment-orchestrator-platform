@@ -10,9 +10,8 @@ Its current responsibilities are:
 * expose order state through the API
 * enforce valid lifecycle transitions
 * reject invalid state changes
-* persist order state changes in PostgreSQL
-
-This module does not implement fulfillment node assignment yet. In the current version, allocation is a lifecycle transition only.
+* assign orders to fulfillment nodes during allocation
+* persist order state changes in PostgreSQL, including assignment data
 
 ## Lifecycle Diagram
 
@@ -32,7 +31,7 @@ The order exists and has been persisted, but no downstream fulfillment work has 
 
 ### ALLOCATED
 
-The order has moved forward in the lifecycle and is eligible for the next operational step. This does not yet mean a fulfillment node has been assigned.
+The order has been assigned to a fulfillment node, its lifecycle moved forward, and the allocation consumed capacity for the current UTC day. The persisted order now carries `assignedFulfillmentNodeId`, and the database row stores `fulfillment_node_id` plus `allocated_at`.
 
 ### READY_TO_SHIP
 
@@ -62,18 +61,58 @@ The order reached its final unsuccessful state through a valid cancellation path
 | `READY_TO_SHIP` | `CANCELLED` |
 | `DISPATCHED` | `DELIVERED` |
 
-## Invalid Transition Behavior
+## Allocation Requirements
+
+`CREATED -> ALLOCATED` is still a domain lifecycle transition, but it is no longer status-only.
+
+The current allocation API requires a request body:
+
+```json
+{
+  "fulfillmentNodeId": "uuid"
+}
+```
+
+For allocation to succeed:
+
+* the order must exist
+* the fulfillment node must exist
+* the fulfillment node must be active
+* the lifecycle must allow `CREATED -> ALLOCATED`
+* the node must still have remaining `maxDailyCapacity` for the current UTC day
+
+Capacity rules in the current implementation:
+
+* capacity is counted per fulfillment node
+* the day boundary is UTC
+* capacity is consumed when allocation succeeds
+* later lifecycle transitions do not release capacity
+* cancelled or delivered orders still count for that allocation day
+* legacy orders with `allocated_at = null` remain valid
+
+Not implemented in the current milestone:
+
+* automatic node selection
+* working days
+* cutoff times
+* capacity reservation tables
+
+## Invalid Transition and Allocation Behavior
 
 Any transition not listed above is invalid.
 
 The domain rejects invalid transitions through `OrderLifecyclePolicy`. When a transition is not allowed, the domain throws `InvalidOrderStatusTransitionException`.
 
-At the API level, that exception is returned as:
+At the API level:
 
-* HTTP `409 Conflict`
-* business error code `INVALID_ORDER_STATUS_TRANSITION`
+* invalid lifecycle transitions return HTTP `409 Conflict` with `INVALID_ORDER_STATUS_TRANSITION`
+* missing `fulfillmentNodeId` returns HTTP `400 Bad Request` with `MISSING_FULFILLMENT_NODE_ID`
+* invalid `fulfillmentNodeId` returns HTTP `400 Bad Request` with `INVALID_FULFILLMENT_NODE_ID`
+* missing fulfillment nodes return HTTP `404 Not Found` with `FULFILLMENT_NODE_NOT_FOUND`
+* inactive fulfillment nodes return HTTP `409 Conflict` with `FULFILLMENT_NODE_INACTIVE`
+* full fulfillment nodes return HTTP `409 Conflict` with `FULFILLMENT_NODE_CAPACITY_EXCEEDED`
 
-Example:
+Example lifecycle error:
 
 ```text
 Cannot transition order status from CREATED to DELIVERED
@@ -95,7 +134,7 @@ Once an order reaches either state, it cannot transition again.
 | Create order | `POST` | `/api/v1/orders` | `CREATED` |
 | Get order | `GET` | `/api/v1/orders/{id}` | current status |
 | Cancel order | `POST` | `/api/v1/orders/{id}/cancel` | `CANCELLED` |
-| Allocate order | `POST` | `/api/v1/orders/{id}/allocate` | `ALLOCATED` |
+| Allocate order to fulfillment node | `POST` | `/api/v1/orders/{id}/allocate` | `ALLOCATED` |
 | Mark ready to ship | `POST` | `/api/v1/orders/{id}/ready-to-ship` | `READY_TO_SHIP` |
 | Dispatch order | `POST` | `/api/v1/orders/{id}/dispatch` | `DISPATCHED` |
 | Deliver order | `POST` | `/api/v1/orders/{id}/deliver` | `DELIVERED` |
@@ -104,15 +143,15 @@ Once an order reaches either state, it cannot transition again.
 
 The `Order` aggregate exposes behavior methods instead of allowing arbitrary status mutation:
 
-* `order.allocate()`
+* `order.allocate(assignedFulfillmentNodeId, allocatedAt)`
 * `order.cancel()`
 * `order.markReadyToShip()`
 * `order.dispatch()`
 * `order.deliver()`
 
-Each behavior routes through a single internal transition path. That path calls `OrderLifecyclePolicy.validateTransition(...)` before the status changes.
+Each lifecycle behavior routes through a single transition path. Allocation first validates the target status, then records assignment data and the allocation timestamp. Other lifecycle mutations use the common transition helper guarded by `OrderLifecyclePolicy`.
 
-This keeps transition rules centralized in one place while keeping the aggregate API explicit and easy to read.
+Capacity validation is intentionally not embedded inside the aggregate. It depends on current UTC time and on a cross-order count query for allocations already persisted for the same node, so the application layer performs that orchestration before calling `order.allocate(...)`.
 
 ## Why Behavior Methods Instead of Setters
 
@@ -124,18 +163,19 @@ Behavior methods are used instead because they:
 * preserve invariants inside the aggregate
 * keep the transition policy enforceable
 * make invalid transitions fail immediately
+* keep assignment data and timestamps coupled to the allocation action
 
 `order.dispatch()` expresses business meaning. `setStatus(DISPATCHED)` does not.
 
 ## Current Limitations
 
-The current Orders module intentionally stops at lifecycle management.
+The current Orders module intentionally stops before:
 
-Not implemented yet:
-
-* fulfillment node assignment
-* stock or capacity validation
-* working day checks
+* automatic node selection
+* working-day-aware capacity
+* cutoff times
+* stock-aware allocation
+* capacity reservation tables
 * shipment tracking or carrier integration
 * proof of delivery
 * domain events and outbox
@@ -146,7 +186,7 @@ Not implemented yet:
 
 Likely next steps around the Orders module:
 
-* integrate allocation with fulfillment node assignment
+* integrate allocation with working-day and operational availability rules
 * publish lifecycle events through an outbox-backed flow
 * add idempotency for mutation endpoints
 * enrich operational visibility with logs, metrics, and traces
