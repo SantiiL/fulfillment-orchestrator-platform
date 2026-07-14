@@ -4,7 +4,7 @@ This roadmap tracks the evolution of the Fulfillment Orchestrator Platform from 
 
 ## Completed
 
-The first Orders lifecycle milestone is complete.
+The first Orders and Fulfillment orchestration milestone is complete.
 
 * Project scaffold
 * Orders domain foundation
@@ -16,25 +16,30 @@ The first Orders lifecycle milestone is complete.
 * Dispatch order
 * Deliver order
 * Orders lifecycle cleanup/refactor
-* Manual cURL validation process
+* Fulfillment Node foundation
+* Order Fulfillment Assignment
+* Capacity-Aware Allocation
+* Persistence of assigned node and allocation timestamp
+* Manual validation of lifecycle and capacity scenarios
 
 ## Current State
 
-The repository now contains a working Orders module with:
+The repository now contains:
 
-* framework-free domain lifecycle rules
-* application use cases and services
-* REST API endpoints
-* PostgreSQL persistence with Flyway
+* a framework-free Orders domain lifecycle
+* a Fulfillment Node catalog
+* order assignment to active fulfillment nodes
+* UTC-day capacity validation during allocation
+* REST APIs, application services, and PostgreSQL persistence with Flyway
 * structured API error responses
-* unit and integration tests
+* unit tests, integration tests, and manual cURL validation
 
 ## Next Milestones
 
-* Fulfillment Node Assignment
-* Working Days / Business Rules
+* Working Days / Business Calendar
+* Operational availability rules
 * Incidents / Failure Handling
-* Domain Events and Outbox
+* Domain Events and Transactional Outbox
 * Idempotency
 * Observability
 * CI/CD

@@ -6,14 +6,14 @@ The Fulfillment Orchestrator Platform currently runs as a modular monolith.
 
 That means one deployable application, but code organized around business capabilities instead of a flat controller/service/repository split.
 
-The first implemented business module is `orders`.
+The currently implemented business modules are `orders` and `fulfillment`.
 
 ## Main Modules
 
 Current or planned module boundaries:
 
-* `orders` - implemented first; owns order lifecycle and order persistence
-* `fulfillment` - planned; will own fulfillment node assignment
+* `orders` - implemented; owns order lifecycle, assignment state, and order persistence
+* `fulfillment` - implemented first slice; owns fulfillment node catalog and node data used during allocation
 * `workingdays` - planned; will own business-day and operating-day rules
 * `incidents` - planned; will own operational failure representation and handling
 * `notifications` - planned; will own outbound communication concerns
@@ -25,62 +25,86 @@ Current or planned module boundaries:
 API -> Application -> Domain -> Infrastructure -> PostgreSQL
 ```
 
-For the Orders module, the current flow is:
+For a typical order mutation:
 
 1. A REST endpoint receives a request.
 2. The controller converts HTTP input into an application command or query.
 3. An application service orchestrates the use case.
-4. The domain model applies lifecycle behavior such as `order.allocate()` or `order.deliver()`.
-5. The persistence adapter saves or loads the order through JPA.
+4. The domain model applies lifecycle behavior such as `order.allocate(...)`, `order.dispatch()`, or `order.deliver()`.
+5. The persistence adapter saves or loads state through JPA.
 6. PostgreSQL stores the final state.
+
+## Orders and Fulfillment Collaboration
+
+Allocation is the main place where the two implemented modules collaborate today.
+
+The current `POST /api/v1/orders/{id}/allocate` flow is:
+
+1. The Orders API parses `orderId` and `fulfillmentNodeId`.
+2. `AllocateOrderService` loads the order from the Orders repository port.
+3. `AllocateOrderService` loads the fulfillment node from the Fulfillment repository port.
+4. The application layer validates that the node exists and is active.
+5. The application layer calculates the current UTC day window and asks the Orders repository for the current allocation count for that node.
+6. If capacity remains, the Orders domain transitions the aggregate with `order.allocate(assignedFulfillmentNodeId, allocatedAt)`.
+7. The Orders persistence adapter saves the new status plus assignment data.
+
+This keeps the collaboration in the application layer instead of coupling the two domain models directly.
 
 ## Layer Responsibilities
 
 ### API
 
-The `orders/api` package owns:
+The API packages own:
 
 * controllers
 * request and response DTOs
 * HTTP status mapping
 * structured API error shaping
 
-It does not own business rules.
+They do not own business rules.
 
 ### Application
 
-The `orders/application` package owns:
+The application packages own:
 
 * use case interfaces
 * commands and queries
 * application services
 * repository ports
 * application-level result objects
+* cross-module orchestration
 
-It coordinates workflows but does not replace the domain model.
+They coordinate workflows but do not replace the domain model.
 
 ### Domain
 
-The `orders/domain` package owns:
+The Orders domain owns:
 
 * `Order`
 * `OrderId`
 * `SellerId`
+* `AssignedFulfillmentNodeId`
 * `OrderStatus`
 * `OrderLifecyclePolicy`
 * lifecycle exceptions
 
-This layer contains the lifecycle rules and behavior methods.
+The Fulfillment domain owns:
+
+* `FulfillmentNode`
+* `FulfillmentNodeId`
+* node validation rules
+
+The Orders domain does not import Fulfillment domain types. It stores assignment through `AssignedFulfillmentNodeId`, which keeps the Order aggregate explicit about its own responsibility without turning the Orders domain into a mirror of the Fulfillment module.
 
 ### Infrastructure
 
-The `orders/infrastructure/persistence` package owns:
+The persistence packages own:
 
 * JPA entities
 * Spring Data repository interfaces
 * persistence adapter implementations
 
-It translates between the database model and the domain model.
+They translate between the database model and the domain model.
 
 ## Why the Domain Layer Is Framework-Free
 
@@ -91,19 +115,21 @@ The domain model stays free from Spring, JPA, Hibernate, and web annotations so 
 * explicit about business behavior
 * reusable if infrastructure changes later
 
-That is why lifecycle operations live in methods such as `order.markReadyToShip()` instead of in controllers or entity setters.
+That is why lifecycle operations live in methods such as `order.allocate(...)` and `order.markReadyToShip()` instead of in controllers or entity setters.
 
-## Why Start as a Modular Monolith
+## Why Capacity Validation Lives in the Application Layer
 
-The project starts as a modular monolith for practical reasons:
+The capacity rule is not only about the current `Order` aggregate.
 
-* module boundaries can be validated before network boundaries exist
-* the first business capabilities can be delivered faster
-* local development stays simple
-* testing remains cheaper than a distributed setup
-* service extraction can be based on real pressure instead of speculation
+It depends on:
 
-This is deliberate, not an intermediate accident.
+* another business object: the fulfillment node and its `maxDailyCapacity`
+* current UTC time to derive the active allocation day window
+* a cross-order count query for allocations already persisted for that node
+
+That makes it an orchestration rule around the allocation use case, not an invariant that can be decided by a single Order instance in isolation.
+
+The aggregate still protects its own lifecycle transition through `OrderLifecyclePolicy`. The application layer adds the external checks required before calling `order.allocate(...)`.
 
 ## Current Persistence Strategy
 
@@ -114,13 +140,41 @@ The current persistence approach is:
 * JPA in the infrastructure layer only
 * domain objects kept free of persistence annotations
 
-The current schema stores orders in a single `orders` table with:
+The current schema stores:
+
+### `orders`
 
 * `id`
 * `seller_id`
 * `status`
+* `fulfillment_node_id`
+* `allocated_at`
 * `created_at`
 * `updated_at`
+
+### `fulfillment_nodes`
+
+* `id`
+* `code`
+* `name`
+* `max_daily_capacity`
+* `active`
+* `created_at`
+* `updated_at`
+
+## Current Repository Count Strategy
+
+Capacity validation currently uses a focused repository method:
+
+* `countAllocationsForFulfillmentNode(fulfillmentNodeId, startInclusive, endExclusive)`
+
+The JPA adapter delegates that to a Spring Data derived query over the `orders` table filtered by:
+
+* `fulfillment_node_id`
+* `allocated_at >= startInclusive`
+* `allocated_at < endExclusive`
+
+This is intentionally simple for the current milestone. There is no reservation table, no precomputed capacity ledger, and no automatic node selection.
 
 ## Current Testing Strategy
 
@@ -154,19 +208,34 @@ The current cURL-based workflow is documented in:
 
 That guide validates:
 
-* successful lifecycle progression
-* invalid transition handling
-* invalid UUID handling
-* not-found handling
-* direct database state verification
+* fulfillment node creation and listing
+* capacity-aware allocation success and failure paths
+* lifecycle progression after successful allocation
+* invalid UUID, not-found, and invalid-request handling
+* direct database state verification for `fulfillment_node_id` and `allocated_at`
+
+## Current Limitations
+
+The current design intentionally stops before:
+
+* working-day-aware capacity
+* cutoff times
+* automatic node selection
+* reservation tables
+* domain events and outbox
+* idempotent mutation handling
+* operational availability rules beyond the current `active` flag
+
+Legacy orders with `allocated_at = null` remain valid and are intentionally tolerated by the current counting strategy.
 
 ## Future Architectural Direction
 
 Planned next architectural steps include:
 
-* fulfillment assignment
+* working days / business calendar
+* operational availability rules
 * outbox-backed domain events
-* event-driven module communication
+* incident handling
 * idempotent mutation handling
 * observability improvements
 

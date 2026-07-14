@@ -1,21 +1,24 @@
 # Fulfillment Orchestrator Platform
 
-Senior-level Java 21 / Spring Boot logistics fulfillment platform built as a modular monolith. The current milestone delivers a full first version of the Orders lifecycle with explicit domain rules, PostgreSQL persistence, structured API errors, unit tests, integration tests, and manual API validation.
+Senior-level Java 21 / Spring Boot logistics fulfillment platform built as a modular monolith. The current milestone delivers a complete first Orders lifecycle, a Fulfillment Node catalog, manual assignment of orders to active nodes, and capacity-aware allocation backed by PostgreSQL, Flyway, structured API errors, unit tests, integration tests, and manual cURL validation.
 
-This repository is intentionally not a CRUD demo. The Orders module models business transitions through domain behavior, keeps orchestration in the application layer, isolates JPA in infrastructure, and validates the full HTTP-to-database flow with Testcontainers-backed integration tests.
+This repository is intentionally not a CRUD demo. The core allocation flow is now a real orchestration step:
+
+```text
+Order + Fulfillment Node + Active validation + Capacity validation -> ALLOCATED
+```
 
 ## Current Capabilities
 
-* Create an order for a seller.
-* Retrieve an order by ID.
-* Allocate an order.
-* Mark an allocated order as ready to ship.
-* Dispatch a ready-to-ship order.
-* Deliver a dispatched order.
-* Cancel an order only from lifecycle states allowed by the domain policy.
+* Create, get, and progress orders through `CREATED -> ALLOCATED -> READY_TO_SHIP -> DISPATCHED -> DELIVERED`.
+* Cancel orders only from lifecycle states allowed by the domain policy.
+* Create, get, and list fulfillment nodes.
+* Allocate an order to an existing active fulfillment node with `POST /api/v1/orders/{id}/allocate`.
+* Validate `maxDailyCapacity` against the current UTC day and return `409 FULFILLMENT_NODE_CAPACITY_EXCEEDED` when the node is full.
+* Persist `fulfillment_node_id` and `allocated_at` when allocation succeeds.
 * Return structured API errors with `status`, `code`, `message`, `path`, and `timestamp`.
-* Persist orders in PostgreSQL with Flyway-managed schema changes.
-* Validate the module with pure unit tests and integration tests.
+* Persist state in PostgreSQL with Flyway-managed schema changes.
+* Validate domain and application behavior with unit tests and the full HTTP-to-database flow with Testcontainers-backed integration tests.
 
 ## Tech Stack
 
@@ -33,22 +36,28 @@ This repository is intentionally not a CRUD demo. The Orders module models busin
 
 ## Architecture Summary
 
-The project starts as a modular monolith organized by business capability. The first implemented business module is `orders`.
+The project starts as a modular monolith organized by business capability. The currently implemented business modules are `orders` and `fulfillment`.
 
-The current request flow is:
+The request flow is:
 
 ```text
 API -> Application -> Domain -> Infrastructure -> PostgreSQL
 ```
 
-Within the Orders module:
+Within that flow:
 
 * `api` handles HTTP requests, responses, and API error shaping.
-* `application` coordinates use cases and repository ports.
-* `domain` owns lifecycle rules and behavior methods such as `order.allocate()` and `order.deliver()`.
-* `infrastructure` contains JPA persistence adapters and database mapping.
+* `application` coordinates use cases and cross-module orchestration.
+* `domain` owns business behavior and stays free from Spring, JPA, and web annotations.
+* `infrastructure` contains JPA entities, Spring Data repositories, and persistence adapters.
 
-The domain layer remains framework-free. Spring, JPA, and web annotations stay out of the core business model.
+Allocation is the most explicit cross-module orchestration path today:
+
+1. The Orders API receives `orderId` plus `fulfillmentNodeId`.
+2. `AllocateOrderService` loads the order and fulfillment node.
+3. The application layer validates that the node exists, is active, and still has remaining UTC-day capacity.
+4. The domain transitions the order with `order.allocate(...)`.
+5. Persistence stores the new order status plus `fulfillment_node_id` and `allocated_at`.
 
 ## Orders Lifecycle Overview
 
@@ -69,19 +78,52 @@ Terminal states:
 * `DELIVERED`
 * `CANCELLED`
 
-Invalid transitions are rejected by the domain policy and returned by the API as `409 Conflict` with the business error code `INVALID_ORDER_STATUS_TRANSITION`.
+Allocation is no longer a status-only transition. `POST /api/v1/orders/{id}/allocate` now requires:
+
+* an existing order
+* an existing fulfillment node
+* an active fulfillment node
+* a valid `CREATED -> ALLOCATED` lifecycle transition
+* remaining node capacity for the current UTC day
+
+When allocation succeeds, the order response includes `assignedFulfillmentNodeId`, and persistence stores `fulfillment_node_id` plus `allocated_at`.
+
+Current capacity behavior:
+
+* capacity is counted per fulfillment node
+* the day boundary is UTC
+* capacity is consumed when allocation succeeds
+* later lifecycle transitions do not release capacity
+* cancelled or delivered orders still count for that allocation day
+* legacy orders with `allocated_at = null` remain valid
+
+Not implemented yet:
+
+* automatic node selection
+* working days or cutoff times
+* capacity reservation tables
 
 ## Available API Endpoints
 
 | Method | Path | Purpose | Success |
 | --- | --- | --- | --- |
+| `POST` | `/api/v1/fulfillment-nodes` | Create fulfillment node | `201 Created` |
+| `GET` | `/api/v1/fulfillment-nodes/{id}` | Get fulfillment node by ID | `200 OK` |
+| `GET` | `/api/v1/fulfillment-nodes` | List fulfillment nodes | `200 OK` |
 | `POST` | `/api/v1/orders` | Create order | `201 Created` |
 | `GET` | `/api/v1/orders/{id}` | Get order by ID | `200 OK` |
-| `POST` | `/api/v1/orders/{id}/cancel` | Cancel order | `200 OK` |
-| `POST` | `/api/v1/orders/{id}/allocate` | Allocate order | `200 OK` |
+| `POST` | `/api/v1/orders/{id}/allocate` | Allocate order to a fulfillment node | `200 OK` |
 | `POST` | `/api/v1/orders/{id}/ready-to-ship` | Mark order ready to ship | `200 OK` |
 | `POST` | `/api/v1/orders/{id}/dispatch` | Dispatch order | `200 OK` |
 | `POST` | `/api/v1/orders/{id}/deliver` | Deliver order | `200 OK` |
+| `POST` | `/api/v1/orders/{id}/cancel` | Cancel order | `200 OK` |
+
+Important allocation error codes:
+
+* `FULFILLMENT_NODE_NOT_FOUND`
+* `FULFILLMENT_NODE_INACTIVE`
+* `FULFILLMENT_NODE_CAPACITY_EXCEEDED`
+* `INVALID_ORDER_STATUS_TRANSITION`
 
 ## Run Locally
 
@@ -124,12 +166,6 @@ Application base URL:
 http://localhost:8080
 ```
 
-Optional health check:
-
-```bash
-curl http://localhost:8080/actuator/health
-```
-
 ### Stop Local Services
 
 ```bash
@@ -158,16 +194,17 @@ The automated test suite uses Testcontainers for integration tests, so it does n
 
 ## Manual API Validation
 
-Manual lifecycle validation cURLs are documented in:
+Manual cURL validation is documented in:
 
 * [docs/api/orders-manual-validation.md](docs/api/orders-manual-validation.md)
 
 That guide covers:
 
-* full lifecycle progression from `CREATED` to `DELIVERED`
-* invalid transition checks
-* invalid UUID and missing-order cases
-* direct PostgreSQL verification
+* fulfillment node creation and listing
+* capacity-aware allocation success and failure paths
+* lifecycle progression after allocation
+* invalid UUID, missing-request-data, and not-found cases
+* direct PostgreSQL verification of `fulfillment_node_id` and `allocated_at`
 
 ## Documentation
 
@@ -183,24 +220,21 @@ That guide covers:
 
 ## Current Project Status
 
-The first real business milestone is complete: the Orders module now supports the full initial lifecycle and persistence flow end to end.
+The current milestone is complete:
 
-Implemented today:
-
-* modular Orders domain model and lifecycle policy
-* REST endpoints for creation, retrieval, cancellation, allocation, ready-to-ship, dispatch, and delivery
-* PostgreSQL persistence with Flyway
-* structured API error responses
-* lifecycle-focused unit and integration tests
-* manual validation cURLs
-* post-lifecycle cleanup/refactor
+* complete Orders lifecycle
+* Fulfillment Node foundation
+* manual assignment of orders to active fulfillment nodes
+* capacity-aware allocation with UTC-day validation
+* persistence of assigned node and allocation timestamp
+* structured API errors, unit tests, integration tests, and manual validation
 
 ## Next Roadmap Items
 
-* Fulfillment node assignment
-* Working days / business rules
-* Incidents / failure handling
-* Domain events and outbox
+* Working Days / Business Calendar
+* Operational availability rules
+* Incidents / Failure Handling
+* Domain Events and Transactional Outbox
 * Idempotency
 * Observability
 * CI/CD
