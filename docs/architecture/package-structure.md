@@ -15,6 +15,8 @@ Initial modules:
 - `notifications`
 - `shared`
 
+In the current codebase, only `orders` and `fulfillment` contain implemented business slices. `workingdays`, `incidents`, and `notifications` currently exist as placeholder package boundaries for planned modules. For the authoritative current-state architecture, use [current-architecture.md](./current-architecture.md).
+
 Each business module may contain internal subpackages:
 
 - `api`

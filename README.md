@@ -206,6 +206,21 @@ That guide covers:
 * invalid UUID, missing-request-data, and not-found cases
 * direct PostgreSQL verification of `fulfillment_node_id` and `allocated_at`
 
+## Agentic Development Workflow
+
+Work enters the repository through a task intake step that assigns a dedicated branch, an isolated worktree, and the smallest writer set needed for the task. Agents are selected according to task scope, so not every agent runs for every task.
+
+Delivery then follows this path:
+
+1. A task is prepared in its own worktree so repository writers do not overlap.
+2. Specialist agents are routed only when their role matches the work, such as infrastructure, implementation, testing, or documentation.
+3. Writers complete the task, record evidence in `.agentic/runs/`, and update supporting documentation such as AI engineering logs when relevant.
+4. Quality gates check the change before review, including the validations appropriate to the task.
+5. An independent reviewer must be outside the full writer set.
+6. A human must approve the change before merge.
+
+Autonomous merge is not enabled in this repository. The authoritative description of currently implemented behavior lives in [docs/architecture/current-architecture.md](docs/architecture/current-architecture.md); roadmap documents describe planned scope unless that behavior is also confirmed there.
+
 ## Documentation
 
 * [README.md](README.md)
