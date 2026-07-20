@@ -4,6 +4,13 @@ This document defines the scope of the first working version of the Fulfillment 
 
 The MVP is intentionally limited. The goal is to validate the core domain and architecture before introducing distributed system complexity.
 
+> [!WARNING]
+> Roadmap requirements in this document describe target MVP scope and must not be interpreted as current production behavior.
+>
+> * Working-days-related behavior is planned future-state scope unless it is explicitly listed as implemented in [../architecture/current-architecture.md](../architecture/current-architecture.md).
+> * Modules absent from the current architecture document, code, and tests are not currently implemented.
+> * When this roadmap and the current implementation differ, [../architecture/current-architecture.md](../architecture/current-architecture.md) is the authoritative source for implemented behavior.
+
 ## MVP Goal
 
 Build a working backend application that can:
@@ -14,7 +21,7 @@ Build a working backend application that can:
 * Validate fulfillment node availability.
 * Move orders through a controlled lifecycle.
 * Expose REST APIs.
-* Provide OpenAPI documentation.
+* Document the HTTP API and manual validation flow.
 * Include unit and integration tests.
 * Run locally with Docker Compose.
 
@@ -83,7 +90,7 @@ The MVP must include:
 The MVP must include:
 
 * README updates.
-* OpenAPI documentation.
+* API endpoint and manual validation documentation.
 * Architecture overview.
 * ADRs for major decisions.
 * AI-assisted engineering logs for relevant implementation tasks.

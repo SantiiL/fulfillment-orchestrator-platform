@@ -4,6 +4,8 @@ The Fulfillment Orchestrator Platform is a backend system that simulates the orc
 
 The system starts as a modular monolith. This means it is deployed as a single application, but internally organized around clear business capabilities.
 
+This page describes the intended module boundaries and architectural direction. For the authoritative description of what is implemented today, use [current-architecture.md](./current-architecture.md). Unless a capability is explicitly described there and backed by code or tests, treat it here as planned or aspirational.
+
 ## High-Level Responsibilities
 
 The platform is responsible for:
@@ -13,7 +15,7 @@ The platform is responsible for:
 * Assigning orders to fulfillment nodes.
 * Validating operational constraints.
 * Managing order lifecycle transitions.
-* Recording relevant business events.
+* Eventually recording relevant business events.
 * Preparing the system for future asynchronous communication.
 
 ## Initial Architecture Style
@@ -27,7 +29,7 @@ The initial architecture style is:
 * Explicit business rules
 * Testable application services
 
-## Planned Modules
+## Module Direction
 
 ### Orders Module
 
@@ -43,10 +45,10 @@ Responsible for:
 
 Responsible for:
 
-* Fulfillment node selection.
+* Fulfillment node catalog and retrieval.
 * Node capacity validation.
-* Logistics type support validation.
-* Assignment strategy.
+* Future fulfillment node selection.
+* Future assignment strategy and logistics-specific rules.
 
 ### Working Days Module
 
@@ -87,9 +89,9 @@ For example:
 * Fulfillment assignment rules belong to the Fulfillment module.
 * Operating day rules belong to the Working Days module.
 
-## Initial Request Flow
+## Illustrative Future Request Flow
 
-Example: create and assign an order.
+Example: create and assign an order after the planned modules are implemented.
 
 1. Client sends a request to create an order.
 2. Orders module validates and creates the order.

@@ -6,6 +6,8 @@ The Fulfillment Orchestrator Platform currently runs as a modular monolith.
 
 That means one deployable application, but code organized around business capabilities instead of a flat controller/service/repository split.
 
+This document is the authoritative source for the architecture that is currently implemented in code. It is the primary reference for current behavior, and roadmap or planning documents must not be interpreted as production behavior unless the same behavior is also present in this document, code, and tests.
+
 The currently implemented business modules are `orders` and `fulfillment`.
 
 ## Main Modules

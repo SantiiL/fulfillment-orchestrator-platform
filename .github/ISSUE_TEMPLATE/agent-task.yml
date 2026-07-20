@@ -1,0 +1,100 @@
+name: Agent task
+description: Prepare an engineering task for the repository's multi-agent workflow.
+title: "[TASK] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Complete every required field before handing the task to the agentic workflow.
+        If your repository already has an `agent-ready` label, apply it manually after issue creation.
+
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+      description: Describe the concrete outcome this task must achieve.
+    validations:
+      required: true
+
+  - type: textarea
+    id: business_context
+    attributes:
+      label: Business context
+      description: Explain why this task matters now.
+    validations:
+      required: true
+
+  - type: textarea
+    id: acceptance_criteria
+    attributes:
+      label: Acceptance criteria
+      description: List the conditions that must be true for the task to be complete.
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: out_of_scope
+    attributes:
+      label: Out of scope
+      description: List what must not be included in this task.
+      placeholder: |
+        - ...
+        - ...
+    validations:
+      required: true
+
+  - type: textarea
+    id: architectural_constraints
+    attributes:
+      label: Architectural constraints
+      description: Record module boundaries, framework constraints, or safety rules that must be preserved.
+    validations:
+      required: true
+
+  - type: textarea
+    id: automated_tests
+    attributes:
+      label: Automated tests
+      description: Specify the automated validation required before review.
+    validations:
+      required: true
+
+  - type: textarea
+    id: manual_validation
+    attributes:
+      label: Manual validation
+      description: Describe the manual validation expected before human approval.
+    validations:
+      required: true
+
+  - type: textarea
+    id: documentation_impact
+    attributes:
+      label: Documentation impact
+      description: Explain which docs or logs must be updated, or state that none are expected.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: risk_level
+    attributes:
+      label: Risk level
+      description: Choose the expected delivery risk.
+      options:
+        - LOW
+        - MEDIUM
+        - HIGH
+    validations:
+      required: true
+
+  - type: input
+    id: preferred_base_branch
+    attributes:
+      label: Preferred base branch
+      description: Enter the branch or ref to branch from.
+      placeholder: origin/develop
+    validations:
+      required: true

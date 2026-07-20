@@ -2,17 +2,9 @@
 
 ## Summary
 
-Describe the purpose of this pull request.
+Describe the change in one short paragraph.
 
-## Context
-
-Explain why this change is needed.
-
-Include the related issue if applicable.
-
-Closes #
-
-## Type of Change
+## Type Of Change
 
 * [ ] Documentation
 * [ ] Feature
@@ -22,61 +14,62 @@ Closes #
 * [ ] Infrastructure
 * [ ] Architecture decision
 
+## Task Or Issue Reference
+
+Link the task or issue this pull request implements.
+
+## Agentic Workflow
+
+Record the task id, base branch, task branch, worktree path, current stage, writer set, reviewer, reviewer verdict, and human-approval state from the task ledger.
+
 ## What Changed
 
 List the main changes introduced by this pull request.
 
-*
-*
-*
+* Change 1
+* Change 2
+* Change 3
 
-## Architecture Notes
+## Architectural Decisions
 
-Describe any architecture-relevant decisions.
+Record any architecture choices, constraints preserved, or trade-offs accepted.
 
-Include module boundaries, patterns, trade-offs or design constraints if applicable.
+## Automated Tests
 
-## Testing
+List the automated checks that were run and their outcomes.
 
-Explain how this change was tested.
+## Manual Validation
 
-* [ ] Unit tests added or updated
-* [ ] Integration tests added or updated
-* [ ] Manual testing completed
-* [ ] Not applicable
+Summarize the manual validation performed, including cURL or operational checks when applicable.
+
+## Documentation Changes
+
+List README, docs, or AI engineering log updates included in this pull request.
+
+## Risk And Rollback
+
+Describe the main risk and how the change can be rolled back safely if needed.
+
+## Reviewer Findings
+
+Summarize reviewer findings and how they were resolved, or state that none were raised.
 
 ## AI-Assisted Development
 
-Was AI used to assist this change?
+Describe how AI was used for planning, implementation, testing, review, or documentation.
 
-* [ ] Yes
-* [ ] No
+## Human Approval Checklist
 
-If yes, describe how it was used.
+* [ ] I reviewed the changed files.
+* [ ] I verified automated test evidence.
+* [ ] I verified manual validation evidence when required.
+* [ ] I confirmed architecture constraints were preserved.
+* [ ] I confirmed documentation was updated where needed.
+* [ ] I approve this change for merge.
 
-Examples:
+## Screenshots Or Examples
 
-* Feature planning
-* Test suggestions
-* Refactor review
-* Documentation draft
-* Pull request summary
-* Code scaffolding
-
-## Human Review Checklist
-
-* [ ] I understand the changes in this pull request.
-* [ ] I reviewed the generated or modified code.
-* [ ] I verified that the change follows the intended architecture.
-* [ ] I checked that module boundaries were respected.
-* [ ] I checked for unnecessary complexity.
-* [ ] I checked for missing tests.
-* [ ] I checked for security or consistency risks.
-* [ ] I updated documentation if needed.
-
-## Screenshots or Examples
-
-Add screenshots, logs, API examples or request/response samples if useful.
+Add screenshots, logs, API examples, or request/response samples if useful.
 
 ## Additional Notes
 
