@@ -192,6 +192,22 @@ Windows PowerShell equivalent:
 
 The automated test suite uses Testcontainers for integration tests, so it does not require a manually running local PostgreSQL container.
 
+## Continuous Integration
+
+GitHub Actions runs the repository CI workflow from [`.github/workflows/ci.yml`](.github/workflows/ci.yml) on:
+
+* pushes to `main` and `develop`
+* pull requests targeting `main` and `develop`
+* manual `workflow_dispatch`
+
+The workflow runs on `ubuntu-latest`, uses immutable action pins for `actions/checkout` (`d23441a48e516b6c34aea4fa41551a30e30af803`, `v6`), `actions/setup-java` (`03ad4de0992f5dab5e18fcb136590ce7c4a0ac95`, `v5`), `gradle/actions/setup-gradle` (`3f131e8634966bd73d06cc69884922b02e6faf92`, `v6`), and `actions/upload-artifact` (`043fb46d1a93c77aae656e7c1c64a875d1fc6a0a`, `v7`). It installs Temurin Java 21, performs Gradle wrapper validation through `gradle/actions/setup-gradle` with `validate-wrappers: true`, primes Gradle caching, verifies that `./gradlew` is executable, and syntax-checks `scripts/agentic/*.sh` before running:
+
+```bash
+./gradlew clean test --no-daemon
+```
+
+There is no separate wrapper-validation action. Integration tests use Testcontainers against the GitHub-hosted Docker daemon to provision PostgreSQL during the test run, so the workflow does not need a separate PostgreSQL service container. When tests fail, CI uploads `build/reports/tests/test` and `build/test-results/test` as `gradle-test-artifacts` for 7 days to support diagnosis without broadening the workflow permissions.
+
 ## Manual API Validation
 
 Manual cURL validation is documented in:
@@ -252,7 +268,7 @@ The current milestone is complete:
 * Domain Events and Transactional Outbox
 * Idempotency
 * Observability
-* CI/CD
+* CD / deployment automation
 
 ## License
 
