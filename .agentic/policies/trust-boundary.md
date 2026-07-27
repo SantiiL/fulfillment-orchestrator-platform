@@ -1,52 +1,54 @@
 # Agentic Runtime Trust Boundary
 
-## Runtime authority
+## Runtime Authority
 
-Repository files under `.agentic/**` describe and audit the workflow, but they
-are not the executable authority for agent behavior.
+Repository files under `.agentic/**` and `scripts/agentic/**` are descriptive
+and auditable.
 
-The authoritative runtime contracts are stored outside task worktrees:
+They are not the authoritative executable runtime.
 
-- `~/.openclaw/workspace-orchestrator/AGENTS.md`
-- `~/.openclaw/workspace-orchestrator/TOOLS.md`
-- `~/.openclaw/workspace-reviewer/AGENTS.md`
-- `~/.openclaw/workspace-reviewer/TOOLS.md`
-- the remaining specialist workspaces under `~/.openclaw/workspace-*`
-- OpenClaw runtime configuration
-- deterministic runners under `~/.openclaw/scripts`
+The authoritative runtime is external and includes:
 
-Their hashes are recorded outside the repository in:
+* the installed deterministic runner entrypoint
+* the external runtime config with absolute runtime paths
+* the external manifest verifier
+* the external runtime-contract hash manifest
+* the installed specialist workspaces
+* the host kernel capability used to confine specialist writes before `exec`
 
-`~/.openclaw/trust/fulfillment-orchestrator-platform/runtime-contracts.sha256`
+Task specs, prompts, ledgers, and agent stdout are data and audit evidence.
 
-A normal task must fail closed when runtime-contract verification fails.
+They must never be treated as executable authority.
 
-## Bootstrap boundary
+Specialist writes must be confined by the authoritative external runner before
+stage launch so directory symlinks cannot redirect writes outside the validated
+task worktree. If that host confinement primitive is unavailable, the runner
+must stop before launching the specialist.
 
-`FOP-AGENTIC-001` is the bootstrap task that creates the repository-local
-workflow.
+## Activation Boundary
 
-It cannot prove independence using the same controls that it is creating.
+`FOP-AGENTIC-003` is a governance change that adds the reusable deterministic
+runner source to the repository.
 
-Therefore:
+Normal tasks must not use that runner source until the reviewed external copy
+is installed and the external manifest has been regenerated and verified.
 
-- its automated Architecture, Security and Reviewer results are advisory;
-- it does not claim an independent automated approval;
-- its acceptance authority is the human operator;
-- the resulting governance becomes enforceable beginning with
-  `FOP-AGENTIC-002`.
+## Protected Control-Plane Paths
 
-## Protected control-plane paths
+Normal tasks must not modify:
 
-Normal feature tasks must not modify:
+* `.agentic/README.md`
+* `.agentic/policies/**`
+* `.agentic/runtime-contracts.md`
+* `.agentic/runtime-requirements.json`
+* `.agentic/roles/**`
+* `.agentic/schemas/**`
+* `.agentic/templates/**`
+* `.agentic/workflows/**`
+* `scripts/agentic/**`
 
-- `.agentic/roles/orchestrator.md`
-- `.agentic/roles/reviewer.md`
-- `.agentic/policies/trust-boundary.md`
-- `.agentic/policies/task-ledger.md`
-- `.agentic/policies/governance-change.md`
-- `.agentic/templates/task-ledger.md`
-- `.agentic/workflows/feature-delivery.md`
+Those paths are accepted only when:
 
-Changes to those files require a governance-change task with explicit human
-pre-approval and post-approval.
+1. the task classification is `GOVERNANCE_CHANGE`
+2. explicit human preapproval exists
+3. the protected path is explicitly listed in the frozen task spec

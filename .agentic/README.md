@@ -1,52 +1,73 @@
 # Agentic Workflow Foundation
 
-This directory defines the minimum repository-local rules required to run engineering tasks through the OpenClaw multi-agent workflow.
+This directory defines the repository-local, auditable source for the
+Fulfillment Orchestrator Platform multi-agent workflow.
 
 Recognized repository agents:
 
 * `orchestrator`
+* `architect`
+* `security`
 * `backend-engineer`
-* `documentation`
+* `frontend-engineer`
 * `infra`
+* `testing-engineer`
+* `qa-api`
+* `documentation`
 * `reviewer`
 
-Current default flow:
+Current repository flow:
 
 ```text
-readiness preparation -> task ledger update -> definition of ready approval -> implementation -> validation -> documentation -> writer-set check -> independent review -> human approval
+readiness preparation -> frozen task spec -> deterministic stage execution -> validation evidence -> documentation -> reviewer independence check -> independent review -> human approval
 ```
-
-Human approval remains mandatory. These files describe how work should be prepared, executed, validated, and reviewed without changing the repository's existing architecture expectations.
 
 Key conventions:
 
-* `.agentic/templates/task-ledger.md` defines the persisted task ledger format
-* `.agentic/runs/<task-id>.md` stores the live ledger for each task
-* `.agentic/policies/task-ledger.md` defines the minimum evidence that must be recorded at each stage
-* every `.agentic/roles/<agentId>.md` filename defines that role contract's canonical OpenClaw agent identity
-* every repository agent identity is the exact case-sensitive OpenClaw `agentId`
-* role labels and `agentId` values are distinct fields and cannot be interchanged informally
-* the writer set contains canonical `agentId` values, never human-readable role names
-* writer and reviewer entries must reference the matching role-contract path
+* `.agentic/templates/task-ledger.md` defines the persisted task-ledger shape
+* `.agentic/runs/<task-id>.md` stores the repository audit ledger for each task
+* `.agentic/policies/task-ledger.md` defines the minimum evidence recorded in
+  the ledger
+* every `.agentic/roles/<agentId>.md` filename defines the canonical
+  case-sensitive OpenClaw `agentId`
+* repository source is auditable and descriptive, but not executable runtime
+  authority
 
-<!-- FOP_BOOTSTRAP_TRUST_BOUNDARY:START -->
-## Bootstrap and runtime trust boundary
+## Runtime Boundary
 
-`FOP-AGENTIC-001` is classified as `BOOTSTRAP_GOVERNANCE`.
+The authoritative deterministic runner, runtime config, and manifest verifier
+live outside repository task worktrees.
 
-It creates the repository-local workflow and is accepted by explicit human
-approval rather than claiming that newly created controls independently
-approved themselves.
+Repository source under `.agentic/**` defines:
 
-The workflow becomes normative for regular delivery tasks beginning with
-`FOP-AGENTIC-002`.
+* schemas
+* policies
+* workflow descriptions
+* descriptive role contracts
+* fixtures and examples
 
-Repository role files are descriptive and auditable.
+The authoritative external runtime defines:
 
-The executable OpenClaw contracts live outside task worktrees and are
-hash-pinned as described in:
+* the installed `~/.openclaw/scripts/fop-deterministic-runner` entrypoint
+* the external runtime config under `~/.openclaw/config/fulfillment-orchestrator-platform/deterministic-runner.json`
+* the manifest verifier and runtime-contract hashes
+* the executable specialist workspaces
+* real fail-closed Landlock child write confinement for specialist stages when
+  the host supports the required kernel primitive
 
-- `.agentic/policies/trust-boundary.md`
-- `.agentic/policies/governance-change.md`
-- `.agentic/runtime-contracts.md`
-<!-- FOP_BOOTSTRAP_TRUST_BOUNDARY:END -->
+The operator-facing runbook for this boundary lives in
+`docs/agentic/deterministic-specialist-runner.md`.
+
+## Activation Status
+
+`FOP-AGENTIC-003` is a `GOVERNANCE_CHANGE`.
+
+It adds the reusable deterministic specialist runner source to the repository,
+but it does not make the runner active for normal tasks yet.
+
+Normal tasks must not use the deterministic runner until:
+
+1. the governance change receives final human approval
+2. the external installed copy is updated
+3. the external runtime-contract manifest is regenerated
+4. runtime verification succeeds from the installed verifier

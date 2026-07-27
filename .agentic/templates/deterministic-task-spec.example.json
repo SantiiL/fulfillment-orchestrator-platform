@@ -1,0 +1,139 @@
+{
+  "schemaVersion": "fop-task-spec/v1",
+  "task": {
+    "id": "FOP-AGENTIC-003",
+    "title": "Deterministic Specialist Runner",
+    "classification": "GOVERNANCE_CHANGE",
+    "issueUrl": "https://github.com/SantiiL/fulfillment-orchestrator-platform/issues/25"
+  },
+  "repo": {
+    "baseBranch": "develop",
+    "taskBranch": "chore/deterministic-specialist-runner",
+    "hostWorktreePath": "/home/santi/agentic-worktrees/fulfillment-orchestrator-platform/fop-agentic-003"
+  },
+  "governance": {
+    "humanPreApproval": true,
+    "finalHumanApprovalRequired": true,
+    "designApprovalTimestamp": "2026-07-21T12:25:42Z"
+  },
+  "scope": {
+    "goal": "Implement the repository-local deterministic specialist runner source and governance documentation.",
+    "acceptanceCriteria": [
+      "Provide the reusable Python runner, shell entrypoint, and deterministic test harness.",
+      "Document the activation boundary so the external installation remains authoritative until post-approval install and manifest verification complete."
+    ],
+    "outOfScope": [
+      "Installing the runner into ~/.openclaw during this task.",
+      "Regenerating the external runtime-contract manifest during this task."
+    ],
+    "constraints": [
+      "Use only the Python standard library for the runner runtime.",
+      "Do not modify src/** or claim the runner is active for normal tasks yet."
+    ],
+    "validations": [
+      "python3 -m unittest scripts.agentic.tests.test_fop_deterministic_runner",
+      "./gradlew clean test --no-daemon"
+    ]
+  },
+  "paths": {
+    "ledgerPath": ".agentic/runs/FOP-AGENTIC-003.md",
+    "globallyWritablePaths": [
+      ".agentic/README.md",
+      ".agentic/policies/deterministic-runner.md",
+      ".agentic/policies/governance-change.md",
+      ".agentic/policies/task-ledger.md",
+      ".agentic/policies/trust-boundary.md",
+      ".agentic/runtime-contracts.md",
+      ".agentic/runtime-requirements.json",
+      ".agentic/roles/architect.md",
+      ".agentic/roles/security.md",
+      ".agentic/roles/testing-engineer.md",
+      ".agentic/roles/frontend-engineer.md",
+      ".agentic/roles/qa-api.md",
+      ".agentic/runs/FOP-AGENTIC-003.md",
+      ".agentic/schemas/deterministic-task-spec.schema.json",
+      ".agentic/templates/deterministic-task-spec.example.json",
+      ".agentic/templates/task-ledger.md",
+      ".agentic/workflows/feature-delivery.md",
+      ".agentic/workflows/governance-change.md",
+      ".agentic/test-fixtures/deterministic-runner/**",
+      "scripts/agentic/fop-deterministic-runner",
+      "scripts/agentic/fop_deterministic_runner.py",
+      "scripts/agentic/tests/**"
+    ]
+  },
+  "stages": {
+    "writerStages": [
+      {
+        "stageId": "infra-implementation",
+        "agentId": "infra",
+        "promptFile": ".agentic/test-fixtures/deterministic-runner/prompts/infra.md",
+        "allowedPaths": [
+          "scripts/agentic/fop-deterministic-runner",
+          "scripts/agentic/fop_deterministic_runner.py",
+          "scripts/agentic/tests/**"
+        ],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "WRITER_DONE"
+        ],
+        "maxAttempts": 2
+      }
+    ],
+    "readOnlyGates": [
+      {
+        "stageId": "testing-gate",
+        "agentId": "testing-engineer",
+        "promptFile": ".agentic/test-fixtures/deterministic-runner/prompts/testing-engineer.md",
+        "allowedPaths": [],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "TESTING_DONE"
+        ],
+        "maxAttempts": 2
+      }
+    ],
+    "documentationWriter": {
+      "stageId": "documentation-stage",
+      "agentId": "documentation",
+      "promptFile": ".agentic/test-fixtures/deterministic-runner/prompts/documentation.md",
+      "allowedPaths": [
+        ".agentic/README.md",
+        ".agentic/policies/deterministic-runner.md",
+        ".agentic/policies/governance-change.md",
+        ".agentic/policies/task-ledger.md",
+        ".agentic/policies/trust-boundary.md",
+        ".agentic/runtime-contracts.md",
+        ".agentic/runtime-requirements.json",
+        ".agentic/roles/architect.md",
+        ".agentic/roles/security.md",
+        ".agentic/roles/testing-engineer.md",
+        ".agentic/roles/frontend-engineer.md",
+        ".agentic/roles/qa-api.md",
+        ".agentic/runs/FOP-AGENTIC-003.md",
+        ".agentic/schemas/deterministic-task-spec.schema.json",
+        ".agentic/templates/deterministic-task-spec.example.json",
+        ".agentic/templates/task-ledger.md",
+        ".agentic/workflows/feature-delivery.md",
+        ".agentic/workflows/governance-change.md",
+        ".agentic/test-fixtures/deterministic-runner/**"
+      ],
+      "timeoutSeconds": 1800,
+      "successMarkers": [
+        "DOCS_DONE"
+      ],
+      "maxAttempts": 2
+    },
+    "finalReviewer": {
+      "stageId": "final-review",
+      "agentId": "reviewer",
+      "promptFile": ".agentic/test-fixtures/deterministic-runner/prompts/reviewer.md",
+      "allowedPaths": [],
+      "timeoutSeconds": 1800,
+      "successMarkers": [
+        "REVIEW_DONE"
+      ],
+      "maxAttempts": 2
+    }
+  }
+}

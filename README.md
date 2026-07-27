@@ -213,6 +213,7 @@ There is no separate wrapper-validation action. Integration tests use Testcontai
 Manual cURL validation is documented in:
 
 * [docs/api/orders-manual-validation.md](docs/api/orders-manual-validation.md)
+* [docs/agentic/deterministic-specialist-runner.md](docs/agentic/deterministic-specialist-runner.md)
 
 That guide covers:
 
@@ -236,6 +237,8 @@ Delivery then follows this path:
 6. A human must approve the change before merge.
 
 Autonomous merge is not enabled in this repository. The authoritative description of currently implemented behavior lives in [docs/architecture/current-architecture.md](docs/architecture/current-architecture.md); roadmap documents describe planned scope unless that behavior is also confirmed there.
+
+The repository now also carries the source and governance documents for a deterministic specialist runner. The final documented implementation uses real fail-closed Landlock write confinement for specialist children, limits writes to the validated task worktree plus per-attempt runtime artifacts, and blocks directory-symlink write-through attempts without mutating external targets. The runner is still inactive for normal tasks until post-merge external installation, runtime-contract manifest regeneration, and installed-runtime verification complete. Operator details and the activation boundary are documented in [docs/agentic/deterministic-specialist-runner.md](docs/agentic/deterministic-specialist-runner.md).
 
 ## Documentation
 
