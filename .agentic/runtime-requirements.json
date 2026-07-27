@@ -1,0 +1,36 @@
+{
+  "activationGates": [
+    "FOP-AGENTIC-003 final human approval",
+    "external runner installation",
+    "external runtime-contract manifest regeneration",
+    "installed manifest verification pass"
+  ],
+  "authoritativeExternalRuntime": {
+    "runnerEntrypoint": "~/.openclaw/scripts/fop-deterministic-runner",
+    "runtimeConfigPath": "~/.openclaw/config/fulfillment-orchestrator-platform/deterministic-runner.json",
+    "runtimeContractManifest": "~/.openclaw/trust/fulfillment-orchestrator-platform/runtime-contracts.sha256",
+    "runtimeContractVerifier": "~/.openclaw/scripts/verify-fop-runtime-contracts.sh"
+  },
+  "normalTaskPolicy": {
+    "runnerActive": false,
+    "runnerActiveCondition": "true only after every activation gate succeeds"
+  },
+  "stageWriteConfinement": {
+    "failClosedWhenUnavailable": true,
+    "requiredHostPrimitive": "kernel-enforced child write confinement before exec",
+    "writableRoots": [
+      "validated task worktree",
+      "per-attempt runtime artifact directory"
+    ]
+  },
+  "runtimeConfigSchema": {
+    "requiredAbsolutePaths": [
+      "openClawExecutable",
+      "runtimeContractVerifier",
+      "runRoot",
+      "lockRoot"
+    ],
+    "schemaVersion": "fop-deterministic-runner-runtime/v1"
+  },
+  "schemaVersion": "fop-runtime-requirements/v1"
+}

@@ -1,0 +1,303 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "additionalProperties": false,
+  "properties": {
+    "governance": {
+      "additionalProperties": false,
+      "properties": {
+        "designApprovalTimestamp": {
+          "type": "string"
+        },
+        "finalHumanApprovalRequired": {
+          "const": true
+        },
+        "humanPreApproval": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "humanPreApproval",
+        "finalHumanApprovalRequired"
+      ],
+      "type": "object"
+    },
+    "paths": {
+      "additionalProperties": false,
+      "properties": {
+        "globallyWritablePaths": {
+          "items": {
+            "$ref": "#/$defs/repoWritablePattern"
+          },
+          "minItems": 1,
+          "type": "array"
+        },
+        "ledgerPath": {
+          "$ref": "#/$defs/repoRelativePath"
+        }
+      },
+      "required": [
+        "ledgerPath",
+        "globallyWritablePaths"
+      ],
+      "type": "object"
+    },
+    "repo": {
+      "additionalProperties": false,
+      "properties": {
+        "baseBranch": {
+          "pattern": "^[A-Za-z0-9._/-]+$",
+          "type": "string"
+        },
+        "hostWorktreePath": {
+          "pattern": "^/.*",
+          "type": "string"
+        },
+        "sandboxMirrorPath": {
+          "pattern": "^/.*",
+          "type": "string"
+        },
+        "taskBranch": {
+          "pattern": "^(?!main$)(?!develop$)[A-Za-z0-9._/-]+$",
+          "type": "string"
+        }
+      },
+      "required": [
+        "baseBranch",
+        "taskBranch",
+        "hostWorktreePath"
+      ],
+      "type": "object"
+    },
+    "schemaVersion": {
+      "const": "fop-task-spec/v1"
+    },
+    "scope": {
+      "additionalProperties": false,
+      "properties": {
+        "acceptanceCriteria": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "constraints": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "goal": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "outOfScope": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "validations": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        }
+      },
+      "required": [
+        "goal",
+        "acceptanceCriteria",
+        "outOfScope",
+        "constraints",
+        "validations"
+      ],
+      "type": "object"
+    },
+    "stages": {
+      "additionalProperties": false,
+      "properties": {
+        "documentationWriter": {
+          "$ref": "#/$defs/writerStage"
+        },
+        "finalReviewer": {
+          "$ref": "#/$defs/readOnlyStage"
+        },
+        "readOnlyGates": {
+          "items": {
+            "$ref": "#/$defs/readOnlyStage"
+          },
+          "type": "array"
+        },
+        "writerStages": {
+          "items": {
+            "$ref": "#/$defs/writerStage"
+          },
+          "minItems": 1,
+          "type": "array"
+        }
+      },
+      "required": [
+        "writerStages",
+        "readOnlyGates",
+        "finalReviewer"
+      ],
+      "type": "object"
+    },
+    "task": {
+      "additionalProperties": false,
+      "properties": {
+        "classification": {
+          "minLength": 1,
+          "type": "string"
+        },
+        "id": {
+          "$ref": "#/$defs/safeIdentifier"
+        },
+        "issueUrl": {
+          "type": "string"
+        },
+        "title": {
+          "minLength": 1,
+          "type": "string"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "classification"
+      ],
+      "type": "object"
+    }
+  },
+  "required": [
+    "schemaVersion",
+    "task",
+    "repo",
+    "governance",
+    "scope",
+    "paths",
+    "stages"
+  ],
+  "type": "object",
+  "$defs": {
+    "nonEmptyStringArray": {
+      "items": {
+        "minLength": 1,
+        "type": "string"
+      },
+      "minItems": 1,
+      "type": "array"
+    },
+    "safeIdentifier": {
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]*$",
+      "type": "string"
+    },
+    "readOnlyStage": {
+      "additionalProperties": false,
+      "properties": {
+        "agentId": {
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "type": "string"
+        },
+        "allowedPaths": {
+          "items": false,
+          "maxItems": 0,
+          "type": "array"
+        },
+        "maxAttempts": {
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "promptFile": {
+          "$ref": "#/$defs/repoRelativePath"
+        },
+        "stageId": {
+          "$ref": "#/$defs/safeIdentifier"
+        },
+        "successMarkers": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "timeoutSeconds": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "stageId",
+        "agentId",
+        "promptFile",
+        "allowedPaths",
+        "timeoutSeconds",
+        "successMarkers",
+        "maxAttempts"
+      ],
+      "type": "object"
+    },
+    "repoRelativePath": {
+      "pattern": "^(?!/)(?!\\.\\.?($|/))(?!.*(?:^|/)\\.\\.?(/|$))(?!.*//)(?!.*[\\\\\\[\\]\\{\\}\\?\\!\\u0000\\*])[A-Za-z0-9._/-]+$",
+      "type": "string"
+    },
+    "repoWritablePattern": {
+      "pattern": "^(?!/)(?!\\.\\.?($|/))(?!.*(?:^|/)\\.\\.?(/|$))(?!.*//)(?!.*[\\\\\\[\\]\\{\\}\\?\\!\\u0000])(?:[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*|[A-Za-z0-9._-]+(?:/[A-Za-z0-9._-]+)*/\\*\\*)$",
+      "type": "string"
+    },
+    "writerStage": {
+      "additionalProperties": false,
+      "properties": {
+        "agentId": {
+          "pattern": "^[a-z][a-z0-9-]*$",
+          "type": "string"
+        },
+        "allowedPaths": {
+          "items": {
+            "$ref": "#/$defs/repoWritablePattern"
+          },
+          "type": "array"
+        },
+        "maxAttempts": {
+          "maximum": 5,
+          "minimum": 1,
+          "type": "integer"
+        },
+        "promptFile": {
+          "$ref": "#/$defs/repoRelativePath"
+        },
+        "stageId": {
+          "$ref": "#/$defs/safeIdentifier"
+        },
+        "successMarkers": {
+          "$ref": "#/$defs/nonEmptyStringArray"
+        },
+        "timeoutSeconds": {
+          "minimum": 1,
+          "type": "integer"
+        }
+      },
+      "required": [
+        "stageId",
+        "agentId",
+        "promptFile",
+        "allowedPaths",
+        "timeoutSeconds",
+        "successMarkers",
+        "maxAttempts"
+      ],
+      "type": "object"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "task": {
+            "properties": {
+              "classification": {
+                "const": "GOVERNANCE_CHANGE"
+              }
+            },
+            "required": [
+              "classification"
+            ]
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "stages": {
+            "required": [
+              "documentationWriter"
+            ]
+          }
+        }
+      }
+    }
+  ]
+}
