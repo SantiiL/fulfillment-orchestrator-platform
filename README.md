@@ -1,6 +1,6 @@
 # Fulfillment Orchestrator Platform
 
-Senior-level Java 21 / Spring Boot logistics fulfillment platform built as a modular monolith. The current milestone delivers a complete first Orders lifecycle, a Fulfillment Node catalog, manual assignment of orders to active nodes, and capacity-aware allocation backed by PostgreSQL, Flyway, structured API errors, unit tests, integration tests, and manual cURL validation.
+Senior-level Java 21 / Spring Boot logistics fulfillment platform built as a modular monolith. The current milestone delivers a complete first Orders lifecycle, a Fulfillment Node catalog, weekly working-days configuration per node, manual assignment of orders to active nodes, and capacity-aware allocation backed by PostgreSQL, Flyway, structured API errors, unit tests, integration tests, and manual cURL validation.
 
 This repository is intentionally not a CRUD demo. The core allocation flow is now a real orchestration step:
 
@@ -13,6 +13,9 @@ Order + Fulfillment Node + Active validation + Capacity validation -> ALLOCATED
 * Create, get, and progress orders through `CREATED -> ALLOCATED -> READY_TO_SHIP -> DISPATCHED -> DELIVERED`.
 * Cancel orders only from lifecycle states allowed by the domain policy.
 * Create, get, and list fulfillment nodes.
+* Get and replace fulfillment-node working days through `GET` and `PUT /api/v1/fulfillment-nodes/{id}/working-days`.
+* Default new and legacy fulfillment nodes to all seven days.
+* Return working days in deterministic Monday-to-Sunday order.
 * Allocate an order to an existing active fulfillment node with `POST /api/v1/orders/{id}/allocate`.
 * Validate `maxDailyCapacity` against the current UTC day and return `409 FULFILLMENT_NODE_CAPACITY_EXCEEDED` when the node is full.
 * Persist `fulfillment_node_id` and `allocated_at` when allocation succeeds.
@@ -100,7 +103,8 @@ Current capacity behavior:
 Not implemented yet:
 
 * automatic node selection
-* working days or cutoff times
+* allocation enforcement against configured working days
+* holidays, date-specific calendars, cutoff times, or per-node time zones
 * capacity reservation tables
 
 ## Available API Endpoints
@@ -110,6 +114,8 @@ Not implemented yet:
 | `POST` | `/api/v1/fulfillment-nodes` | Create fulfillment node | `201 Created` |
 | `GET` | `/api/v1/fulfillment-nodes/{id}` | Get fulfillment node by ID | `200 OK` |
 | `GET` | `/api/v1/fulfillment-nodes` | List fulfillment nodes | `200 OK` |
+| `GET` | `/api/v1/fulfillment-nodes/{id}/working-days` | Get fulfillment node working days | `200 OK` |
+| `PUT` | `/api/v1/fulfillment-nodes/{id}/working-days` | Replace fulfillment node working days | `200 OK` |
 | `POST` | `/api/v1/orders` | Create order | `201 Created` |
 | `GET` | `/api/v1/orders/{id}` | Get order by ID | `200 OK` |
 | `POST` | `/api/v1/orders/{id}/allocate` | Allocate order to a fulfillment node | `200 OK` |
@@ -124,6 +130,12 @@ Important allocation error codes:
 * `FULFILLMENT_NODE_INACTIVE`
 * `FULFILLMENT_NODE_CAPACITY_EXCEEDED`
 * `INVALID_ORDER_STATUS_TRANSITION`
+
+Important working-days error codes:
+
+* `INVALID_FULFILLMENT_NODE_ID`
+* `FULFILLMENT_NODE_NOT_FOUND`
+* `INVALID_FULFILLMENT_NODE_WORKING_DAYS_REQUEST`
 
 ## Run Locally
 
@@ -218,10 +230,11 @@ Manual cURL validation is documented in:
 That guide covers:
 
 * fulfillment node creation and listing
+* fulfillment node working-days default, replacement, error handling, and PostgreSQL verification
 * capacity-aware allocation success and failure paths
 * lifecycle progression after allocation
 * invalid UUID, missing-request-data, and not-found cases
-* direct PostgreSQL verification of `fulfillment_node_id` and `allocated_at`
+* direct PostgreSQL verification of `fulfillment_node_id`, `allocated_at`, and normalized `fulfillment_node_working_days` rows
 
 ## Agentic Development Workflow
 

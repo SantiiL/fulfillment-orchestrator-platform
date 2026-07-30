@@ -74,6 +74,19 @@ public class FulfillmentNodeApiExceptionHandler {
         );
     }
 
+    @ExceptionHandler(InvalidFulfillmentNodeWorkingDaysRequestException.class)
+    public ResponseEntity<ApiErrorResponse> handleInvalidWorkingDaysRequest(
+            InvalidFulfillmentNodeWorkingDaysRequestException exception,
+            HttpServletRequest request
+    ) {
+        return buildErrorResponse(
+                HttpStatus.BAD_REQUEST,
+                "INVALID_FULFILLMENT_NODE_WORKING_DAYS_REQUEST",
+                exception.getMessage(),
+                request.getRequestURI()
+        );
+    }
+
     private ResponseEntity<ApiErrorResponse> buildErrorResponse(
             HttpStatus status,
             String code,

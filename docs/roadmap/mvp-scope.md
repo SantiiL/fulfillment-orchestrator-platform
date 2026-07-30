@@ -7,7 +7,7 @@ The MVP is intentionally limited. The goal is to validate the core domain and ar
 > [!WARNING]
 > Roadmap requirements in this document describe target MVP scope and must not be interpreted as current production behavior.
 >
-> * Working-days-related behavior is planned future-state scope unless it is explicitly listed as implemented in [../architecture/current-architecture.md](../architecture/current-architecture.md).
+> * Weekly working-days configuration is implemented for fulfillment nodes, but allocation enforcement against those configured days remains future-state scope until it is promoted into [../architecture/current-architecture.md](../architecture/current-architecture.md).
 > * Modules absent from the current architecture document, code, and tests are not currently implemented.
 > * When this roadmap and the current implementation differ, [../architecture/current-architecture.md](../architecture/current-architecture.md) is the authoritative source for implemented behavior.
 
@@ -18,7 +18,7 @@ Build a working backend application that can:
 * Create orders.
 * Store orders in PostgreSQL.
 * Assign orders to fulfillment nodes.
-* Validate fulfillment node availability.
+* Configure weekly fulfillment-node working days.
 * Move orders through a controlled lifecycle.
 * Expose REST APIs.
 * Document the HTTP API and manual validation flow.
@@ -50,20 +50,29 @@ Initial order statuses:
 
 The system must support assigning an order to a fulfillment node based on simple business rules.
 
-Initial assignment criteria:
+Current implemented assignment criteria:
 
 * Node is active.
 * Node has available capacity.
+
+Planned next assignment criteria:
+
 * Node operates on the requested day.
 * Node supports the requested logistics type.
 
 ### Working Days
 
-The system must support validating whether a fulfillment node operates on a given day.
+The system must support configuring the weekly operating days of a fulfillment node.
 
-Initial rules:
+Current implemented rules:
 
-* Nodes can define operating days.
+* Nodes own a weekly working-days set.
+* New and legacy nodes default to all seven days.
+* Working days can be queried and replaced through the Fulfillment API.
+* Responses are returned in deterministic Monday-to-Sunday order.
+
+Planned next rule:
+
 * Orders cannot be assigned to nodes that are closed on the requested date.
 
 ### Persistence
@@ -122,6 +131,7 @@ The MVP is considered successful when:
 * Orders can be created through the API.
 * Orders are persisted in PostgreSQL.
 * Orders can be assigned to valid fulfillment nodes.
+* Fulfillment-node working days can be queried and replaced.
 * Invalid node assignments are rejected.
 * Invalid order state transitions are rejected.
 * Tests run successfully in CI.

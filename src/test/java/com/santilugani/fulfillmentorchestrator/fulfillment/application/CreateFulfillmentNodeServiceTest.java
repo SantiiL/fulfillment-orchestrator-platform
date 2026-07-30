@@ -3,6 +3,9 @@ package com.santilugani.fulfillmentorchestrator.fulfillment.application;
 import com.santilugani.fulfillmentorchestrator.fulfillment.domain.FulfillmentNode;
 import org.junit.jupiter.api.Test;
 
+import java.time.DayOfWeek;
+import java.util.EnumSet;
+
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -44,6 +47,7 @@ class CreateFulfillmentNodeServiceTest {
         assertEquals("Buenos Aires Node 1", savedFulfillmentNode.getName());
         assertEquals(100, savedFulfillmentNode.getMaxDailyCapacity());
         assertTrue(savedFulfillmentNode.isActive());
+        assertEquals(EnumSet.allOf(DayOfWeek.class), savedFulfillmentNode.getWorkingDays());
     }
 
     @Test
