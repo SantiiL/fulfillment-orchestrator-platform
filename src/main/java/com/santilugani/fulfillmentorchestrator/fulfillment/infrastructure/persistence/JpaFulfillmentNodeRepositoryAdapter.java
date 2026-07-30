@@ -23,7 +23,11 @@ public class JpaFulfillmentNodeRepositoryAdapter implements FulfillmentNodeRepos
 
     @Override
     public void save(FulfillmentNode fulfillmentNode) {
-        springDataFulfillmentNodeRepository.save(FulfillmentNodeJpaEntity.fromDomain(fulfillmentNode));
+        FulfillmentNodeJpaEntity entity = springDataFulfillmentNodeRepository.findById(fulfillmentNode.getId().value())
+                .map(existingEntity -> existingEntity.updateFromDomain(fulfillmentNode))
+                .orElseGet(() -> FulfillmentNodeJpaEntity.fromDomain(fulfillmentNode));
+
+        springDataFulfillmentNodeRepository.save(entity);
     }
 
     @Override

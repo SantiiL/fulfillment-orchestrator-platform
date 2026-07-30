@@ -1,0 +1,142 @@
+{
+  "schemaVersion": "fop-task-spec/v1",
+  "task": {
+    "id": "FOP-WORKING-DAYS-001-RECOVERY-002",
+    "title": "Close Weekly Working Days Test Coverage Gaps",
+    "classification": "FEATURE",
+    "issueUrl": "https://github.com/SantiiL/fulfillment-orchestrator-platform/issues/27"
+  },
+  "repo": {
+    "baseBranch": "develop",
+    "taskBranch": "feature/fulfillment-node-working-days",
+    "hostWorktreePath": "/home/santi/agentic-worktrees/fulfillment-orchestrator-platform/fop-working-days-001"
+  },
+  "governance": {
+    "humanPreApproval": true,
+    "finalHumanApprovalRequired": true,
+    "designApprovalTimestamp": "2026-07-27T20:19:48Z"
+  },
+  "scope": {
+    "goal": "Close the two concrete testing-gate coverage gaps without changing feature behavior.",
+    "acceptanceCriteria": [
+      "Application-layer replacement idempotency is explicitly tested.",
+      "PUT invalid UUID is integration-tested as structured 400.",
+      "PUT missing node is integration-tested as structured 404.",
+      "Focused and complete clean test suites pass.",
+      "No production, Orders, top-level workingdays, build or dependency files change.",
+      "The canonical ledger records honest correction and gate history."
+    ],
+    "outOfScope": [
+      "Production behavior changes.",
+      "Allocation enforcement.",
+      "Orders changes.",
+      "Top-level workingdays changes.",
+      "New dependencies.",
+      "Commits, pushes, pull requests or merges."
+    ],
+    "constraints": [
+      "Modify only the two approved test files and canonical ledger during the writer stage.",
+      "Keep all generated Gradle and build output under TMPDIR.",
+      "Do not infer final human approval."
+    ],
+    "validations": [
+      "Focused application and integration tests.",
+      "Complete clean test suite.",
+      "git diff --check.",
+      "Read-only testing, API QA, security and final-review gates."
+    ]
+  },
+  "paths": {
+    "ledgerPath": ".agentic/runs/FOP-WORKING-DAYS-001.md",
+    "globallyWritablePaths": [
+      ".agentic/runs/FOP-WORKING-DAYS-001.md",
+      ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-002/**",
+      "src/test/java/com/santilugani/fulfillmentorchestrator/fulfillment/application/ReplaceFulfillmentNodeWorkingDaysServiceTest.java",
+      "src/test/java/com/santilugani/fulfillmentorchestrator/fulfillment/api/FulfillmentNodeControllerIntegrationTest.java",
+      "README.md",
+      "ROADMAP.md",
+      "docs/**"
+    ]
+  },
+  "stages": {
+    "writerStages": [
+      {
+        "stageId": "test-coverage-fix",
+        "agentId": "backend-engineer",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-002/prompts/backend-engineer.md",
+        "allowedPaths": [
+          ".agentic/runs/FOP-WORKING-DAYS-001.md",
+          "src/test/java/com/santilugani/fulfillmentorchestrator/fulfillment/application/ReplaceFulfillmentNodeWorkingDaysServiceTest.java",
+          "src/test/java/com/santilugani/fulfillmentorchestrator/fulfillment/api/FulfillmentNodeControllerIntegrationTest.java"
+        ],
+        "timeoutSeconds": 2400,
+        "successMarkers": [
+          "TEST_COVERAGE_FIX_DONE"
+        ],
+        "maxAttempts": 2
+      }
+    ],
+    "readOnlyGates": [
+      {
+        "stageId": "testing-gate",
+        "agentId": "testing-engineer",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-002/prompts/testing-engineer.md",
+        "allowedPaths": [],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "TESTING_VERDICT_PASS"
+        ],
+        "maxAttempts": 2
+      },
+      {
+        "stageId": "api-qa-gate",
+        "agentId": "qa-api",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-002/prompts/qa-api.md",
+        "allowedPaths": [],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "QA_API_VERDICT_PASS"
+        ],
+        "maxAttempts": 2
+      },
+      {
+        "stageId": "security-gate",
+        "agentId": "security",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-002/prompts/security.md",
+        "allowedPaths": [],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "SECURITY_VERDICT_PASS"
+        ],
+        "maxAttempts": 2
+      }
+    ],
+    "documentationWriter": {
+      "stageId": "documentation",
+      "agentId": "documentation",
+      "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-002/prompts/documentation.md",
+      "allowedPaths": [
+        ".agentic/runs/FOP-WORKING-DAYS-001.md",
+        "README.md",
+        "ROADMAP.md",
+        "docs/**"
+      ],
+      "timeoutSeconds": 1800,
+      "successMarkers": [
+        "DOCUMENTATION_DONE"
+      ],
+      "maxAttempts": 2
+    },
+    "finalReviewer": {
+      "stageId": "final-review",
+      "agentId": "reviewer",
+      "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-002/prompts/reviewer.md",
+      "allowedPaths": [],
+      "timeoutSeconds": 1800,
+      "successMarkers": [
+        "FINAL_REVIEW_APPROVE"
+      ],
+      "maxAttempts": 2
+    }
+  }
+}

@@ -1,0 +1,153 @@
+{
+  "schemaVersion": "fop-task-spec/v1",
+  "task": {
+    "id": "FOP-WORKING-DAYS-001",
+    "title": "Fulfillment Node Weekly Working Days",
+    "classification": "FEATURE",
+    "issueUrl": "https://github.com/SantiiL/fulfillment-orchestrator-platform/issues/27"
+  },
+  "repo": {
+    "baseBranch": "develop",
+    "taskBranch": "feature/fulfillment-node-working-days",
+    "hostWorktreePath": "/home/santi/agentic-worktrees/fulfillment-orchestrator-platform/fop-working-days-001"
+  },
+  "governance": {
+    "humanPreApproval": true,
+    "finalHumanApprovalRequired": true,
+    "designApprovalTimestamp": "2026-07-27T16:18:21Z"
+  },
+  "scope": {
+    "goal": "Store, query and replace the weekly operating days of each fulfillment node while preserving all existing allocation behavior.",
+    "acceptanceCriteria": [
+      "FulfillmentNode owns a non-null, non-empty immutable set of weekly working days.",
+      "New fulfillment nodes default to all seven DayOfWeek values without changing the existing create API.",
+      "Existing fulfillment nodes are backfilled with all seven days by Flyway.",
+      "GET /api/v1/fulfillment-nodes/{id}/working-days returns the configured days in deterministic Monday-to-Sunday order.",
+      "PUT /api/v1/fulfillment-nodes/{id}/working-days replaces the complete set and is idempotent.",
+      "Missing, null, empty or invalid working-day payloads return a structured 400 response.",
+      "Invalid fulfillment node IDs return structured 400 responses and missing nodes return structured 404 responses.",
+      "Persistence uses fulfillment_node_working_days with a composite primary key and foreign key; no CSV or JSON collection storage is used.",
+      "Orders, capacity-aware allocation and existing Fulfillment Node endpoints preserve their behavior.",
+      "./gradlew clean test --no-daemon passes and manual Postman-compatible cURLs are documented."
+    ],
+    "outOfScope": [
+      "Rejecting allocation based on the current day.",
+      "Holidays, exceptional closures or date-specific calendars.",
+      "Working hours, cutoff times or time zones per fulfillment node.",
+      "Automatic node selection, fallback or rescheduling.",
+      "Changes to Orders domain or Orders API.",
+      "Dispatch or delivery availability rules.",
+      "Events, transactional outbox, Kafka, idempotency and observability.",
+      "A generic BusinessCalendar aggregate or scheduling engine."
+    ],
+    "constraints": [
+      "Preserve modular monolith boundaries.",
+      "Keep the domain free from Spring, JPA and HTTP concerns.",
+      "Use a normalized relational table and Flyway migration.",
+      "Do not add dependencies.",
+      "Do not modify Orders production code.",
+      "Do not enforce working days during allocation in this task.",
+      "Do not commit, push, create a PR or merge."
+    ],
+    "validations": [
+      "./gradlew clean test --no-daemon",
+      "Manual Postman-compatible cURL validation",
+      "PostgreSQL verification of fulfillment_node_working_days"
+    ]
+  },
+  "paths": {
+    "ledgerPath": ".agentic/runs/FOP-WORKING-DAYS-001.md",
+    "globallyWritablePaths": [
+      ".agentic/runs/FOP-WORKING-DAYS-001.md",
+      ".agentic/tasks/FOP-WORKING-DAYS-001/**",
+      "src/main/java/com/santilugani/fulfillmentorchestrator/fulfillment/**",
+      "src/test/java/com/santilugani/fulfillmentorchestrator/fulfillment/**",
+      "src/main/resources/db/migration/V5__add_fulfillment_node_working_days.sql",
+      "README.md",
+      "ROADMAP.md",
+      "docs/**"
+    ]
+  },
+  "stages": {
+    "writerStages": [
+      {
+        "stageId": "backend-implementation",
+        "agentId": "backend-engineer",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001/prompts/backend-engineer.md",
+        "allowedPaths": [
+          ".agentic/runs/FOP-WORKING-DAYS-001.md",
+          "src/main/java/com/santilugani/fulfillmentorchestrator/fulfillment/**",
+          "src/test/java/com/santilugani/fulfillmentorchestrator/fulfillment/**",
+          "src/main/resources/db/migration/V5__add_fulfillment_node_working_days.sql"
+        ],
+        "timeoutSeconds": 3600,
+        "successMarkers": [
+          "BACKEND_IMPLEMENTATION_DONE"
+        ],
+        "maxAttempts": 2
+      }
+    ],
+    "readOnlyGates": [
+      {
+        "stageId": "testing-gate",
+        "agentId": "testing-engineer",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001/prompts/testing-engineer.md",
+        "allowedPaths": [],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "TESTING_VERDICT_PASS"
+        ],
+        "maxAttempts": 2
+      },
+      {
+        "stageId": "api-qa-gate",
+        "agentId": "qa-api",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001/prompts/qa-api.md",
+        "allowedPaths": [],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "QA_API_VERDICT_PASS"
+        ],
+        "maxAttempts": 2
+      },
+      {
+        "stageId": "security-gate",
+        "agentId": "security",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001/prompts/security.md",
+        "allowedPaths": [],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "SECURITY_VERDICT_PASS"
+        ],
+        "maxAttempts": 2
+      }
+    ],
+    "documentationWriter": {
+      "stageId": "documentation",
+      "agentId": "documentation",
+      "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001/prompts/documentation.md",
+      "allowedPaths": [
+        ".agentic/runs/FOP-WORKING-DAYS-001.md",
+        "README.md",
+        "ROADMAP.md",
+        "docs/**"
+      ],
+      "timeoutSeconds": 1800,
+      "successMarkers": [
+        "DOCUMENTATION_DONE"
+      ],
+      "maxAttempts": 2
+    },
+    "finalReviewer": {
+      "stageId": "final-review",
+      "agentId": "reviewer",
+      "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001/prompts/reviewer.md",
+      "allowedPaths": [],
+      "timeoutSeconds": 1800,
+      "successMarkers": [
+        "FINAL_REVIEW_APPROVE"
+      ],
+      "maxAttempts": 2
+    }
+  }
+}

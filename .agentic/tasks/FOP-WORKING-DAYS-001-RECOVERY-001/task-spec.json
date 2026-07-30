@@ -1,0 +1,147 @@
+{
+  "schemaVersion": "fop-task-spec/v1",
+  "task": {
+    "id": "FOP-WORKING-DAYS-001-RECOVERY-001",
+    "title": "Recover Fulfillment Node Weekly Working Days",
+    "classification": "FEATURE",
+    "issueUrl": "https://github.com/SantiiL/fulfillment-orchestrator-platform/issues/27"
+  },
+  "repo": {
+    "baseBranch": "develop",
+    "taskBranch": "feature/fulfillment-node-working-days",
+    "hostWorktreePath": "/home/santi/agentic-worktrees/fulfillment-orchestrator-platform/fop-working-days-001"
+  },
+  "governance": {
+    "humanPreApproval": true,
+    "finalHumanApprovalRequired": true,
+    "designApprovalTimestamp": "2026-07-27T19:08:29Z"
+  },
+  "scope": {
+    "goal": "Recover the retained authorized implementation of Fulfillment Node weekly working days after the original runner rejected attempt 2 for path violations.",
+    "acceptanceCriteria": [
+      "Retained authorized Fulfillment code is made coherent without restarting the feature.",
+      "Application services and tests live under the Fulfillment module.",
+      "No changed path exists under Orders or the top-level workingdays module.",
+      "No Gradle cache or generated output is written inside the worktree.",
+      "The approved domain, persistence, API and compatibility behavior is preserved.",
+      "The complete clean test suite passes with external Gradle cache.",
+      "The canonical parent-task ledger records honest recovery history and exact File Coverage."
+    ],
+    "outOfScope": [
+      "Re-running or rewriting the exhausted original runner stage.",
+      "Working-day enforcement during allocation.",
+      "Holidays, exceptional dates, hours, cutoffs or node time zones.",
+      "Orders production or test changes.",
+      "Top-level workingdays module changes.",
+      "New dependencies, commits, pushes, pull requests or merges."
+    ],
+    "constraints": [
+      "Preserve modular-monolith and ports-and-adapters boundaries.",
+      "Keep the Fulfillment domain free from Spring, JPA and HTTP.",
+      "Use only approved paths.",
+      "Use TMPDIR for Gradle cache and temporary process output.",
+      "Do not infer final human approval."
+    ],
+    "validations": [
+      "Focused tests where useful.",
+      "Full clean test suite through GradleWrapperMain with external GRADLE_USER_HOME.",
+      "git diff --check.",
+      "Read-only testing, API QA, security and final-review gates."
+    ]
+  },
+  "paths": {
+    "ledgerPath": ".agentic/runs/FOP-WORKING-DAYS-001.md",
+    "globallyWritablePaths": [
+      ".agentic/runs/FOP-WORKING-DAYS-001.md",
+      ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-001/**",
+      "src/main/java/com/santilugani/fulfillmentorchestrator/fulfillment/**",
+      "src/test/java/com/santilugani/fulfillmentorchestrator/fulfillment/**",
+      "src/main/resources/db/migration/V5__add_fulfillment_node_working_days.sql",
+      "README.md",
+      "ROADMAP.md",
+      "docs/**"
+    ]
+  },
+  "stages": {
+    "writerStages": [
+      {
+        "stageId": "backend-recovery",
+        "agentId": "backend-engineer",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-001/prompts/backend-engineer.md",
+        "allowedPaths": [
+          ".agentic/runs/FOP-WORKING-DAYS-001.md",
+          "src/main/java/com/santilugani/fulfillmentorchestrator/fulfillment/**",
+          "src/test/java/com/santilugani/fulfillmentorchestrator/fulfillment/**",
+          "src/main/resources/db/migration/V5__add_fulfillment_node_working_days.sql"
+        ],
+        "timeoutSeconds": 3600,
+        "successMarkers": [
+          "BACKEND_RECOVERY_DONE"
+        ],
+        "maxAttempts": 2
+      }
+    ],
+    "readOnlyGates": [
+      {
+        "stageId": "testing-gate",
+        "agentId": "testing-engineer",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-001/prompts/testing-engineer.md",
+        "allowedPaths": [],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "TESTING_VERDICT_PASS"
+        ],
+        "maxAttempts": 2
+      },
+      {
+        "stageId": "api-qa-gate",
+        "agentId": "qa-api",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-001/prompts/qa-api.md",
+        "allowedPaths": [],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "QA_API_VERDICT_PASS"
+        ],
+        "maxAttempts": 2
+      },
+      {
+        "stageId": "security-gate",
+        "agentId": "security",
+        "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-001/prompts/security.md",
+        "allowedPaths": [],
+        "timeoutSeconds": 1800,
+        "successMarkers": [
+          "SECURITY_VERDICT_PASS"
+        ],
+        "maxAttempts": 2
+      }
+    ],
+    "documentationWriter": {
+      "stageId": "documentation",
+      "agentId": "documentation",
+      "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-001/prompts/documentation.md",
+      "allowedPaths": [
+        ".agentic/runs/FOP-WORKING-DAYS-001.md",
+        "README.md",
+        "ROADMAP.md",
+        "docs/**"
+      ],
+      "timeoutSeconds": 1800,
+      "successMarkers": [
+        "DOCUMENTATION_DONE"
+      ],
+      "maxAttempts": 2
+    },
+    "finalReviewer": {
+      "stageId": "final-review",
+      "agentId": "reviewer",
+      "promptFile": ".agentic/tasks/FOP-WORKING-DAYS-001-RECOVERY-001/prompts/reviewer.md",
+      "allowedPaths": [],
+      "timeoutSeconds": 1800,
+      "successMarkers": [
+        "FINAL_REVIEW_APPROVE"
+      ],
+      "maxAttempts": 2
+    }
+  }
+}

@@ -1,6 +1,6 @@
-# Orders Manual Validation
+# Orders And Fulfillment Manual Validation
 
-This guide validates the current fulfillment-aware and capacity-aware Orders flow manually against a locally running application.
+This guide validates the current Fulfillment Node catalog, weekly working-days configuration, and capacity-aware Orders flow manually against a locally running application.
 
 Base URL:
 
@@ -11,7 +11,7 @@ http://localhost:8080
 Use a unique fulfillment node code for each run to avoid duplicate-code conflicts:
 
 ```text
-AR-BUE-CAP-<timestamp>
+AR-BUE-WD-<timestamp>
 ```
 
 Example seller IDs used throughout:
@@ -51,8 +51,8 @@ Windows PowerShell equivalent:
 curl --location 'http://localhost:8080/api/v1/fulfillment-nodes' \
   --header 'Content-Type: application/json' \
   --data '{
-    "code": "AR-BUE-CAP-<timestamp>",
-    "name": "Buenos Aires Capacity Node",
+    "code": "AR-BUE-WD-<timestamp>",
+    "name": "Buenos Aires Working Days Node",
     "maxDailyCapacity": 1
   }'
 ```
@@ -65,7 +65,56 @@ Expected:
 
 Save the returned ID as `<FULFILLMENT_NODE_ID>`.
 
-## 2. List Fulfillment Nodes -> 200
+## 2. Get Default Working Days -> 200
+
+```bash
+curl --location 'http://localhost:8080/api/v1/fulfillment-nodes/<FULFILLMENT_NODE_ID>/working-days'
+```
+
+Expected:
+
+* HTTP `200 OK`
+* `id = <FULFILLMENT_NODE_ID>`
+* `workingDays = ["MONDAY", "TUESDAY", "WEDNESDAY", "THURSDAY", "FRIDAY", "SATURDAY", "SUNDAY"]`
+
+This verifies the seven-day default for newly created nodes.
+
+## 3. Replace Working Days -> 200
+
+```bash
+curl --location --request PUT 'http://localhost:8080/api/v1/fulfillment-nodes/<FULFILLMENT_NODE_ID>/working-days' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "workingDays": ["SUNDAY", "MONDAY", "FRIDAY"]
+  }'
+```
+
+Expected:
+
+* HTTP `200 OK`
+* `id = <FULFILLMENT_NODE_ID>`
+* `workingDays = ["MONDAY", "FRIDAY", "SUNDAY"]`
+
+The API sorts the response deterministically from Monday through Sunday, regardless of request order.
+
+## 4. Repeat The Same Replacement -> 200
+
+```bash
+curl --location --request PUT 'http://localhost:8080/api/v1/fulfillment-nodes/<FULFILLMENT_NODE_ID>/working-days' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "workingDays": ["SUNDAY", "MONDAY", "FRIDAY"]
+  }'
+```
+
+Expected:
+
+* HTTP `200 OK`
+* `workingDays = ["MONDAY", "FRIDAY", "SUNDAY"]` again
+
+This verifies whole-set replacement idempotency.
+
+## 5. List Fulfillment Nodes -> 200
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/fulfillment-nodes'
@@ -76,7 +125,106 @@ Expected:
 * HTTP `200 OK`
 * the created node appears in the list
 
-## 3. Create First Order -> CREATED
+## 6. Get Working Days With Invalid UUID -> 400
+
+```bash
+curl --location 'http://localhost:8080/api/v1/fulfillment-nodes/not-a-uuid/working-days'
+```
+
+Expected:
+
+* HTTP `400 Bad Request`
+* `code = INVALID_FULFILLMENT_NODE_ID`
+
+## 7. Replace Working Days With Invalid UUID -> 400
+
+```bash
+curl --location --request PUT 'http://localhost:8080/api/v1/fulfillment-nodes/not-a-uuid/working-days' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "workingDays": ["MONDAY"]
+  }'
+```
+
+Expected:
+
+* HTTP `400 Bad Request`
+* `code = INVALID_FULFILLMENT_NODE_ID`
+
+## 8. Get Working Days For Missing Node -> 404
+
+```bash
+curl --location 'http://localhost:8080/api/v1/fulfillment-nodes/22222222-2222-2222-2222-222222222222/working-days'
+```
+
+Expected:
+
+* HTTP `404 Not Found`
+* `code = FULFILLMENT_NODE_NOT_FOUND`
+
+## 9. Replace Working Days For Missing Node -> 404
+
+```bash
+curl --location --request PUT 'http://localhost:8080/api/v1/fulfillment-nodes/22222222-2222-2222-2222-222222222222/working-days' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "workingDays": ["MONDAY"]
+  }'
+```
+
+Expected:
+
+* HTTP `404 Not Found`
+* `code = FULFILLMENT_NODE_NOT_FOUND`
+
+## 10. Replace Working Days With Invalid Body -> 400
+
+Missing `workingDays`:
+
+```bash
+curl --location --request PUT 'http://localhost:8080/api/v1/fulfillment-nodes/<FULFILLMENT_NODE_ID>/working-days' \
+  --header 'Content-Type: application/json' \
+  --data '{}'
+```
+
+Invalid token:
+
+```bash
+curl --location --request PUT 'http://localhost:8080/api/v1/fulfillment-nodes/<FULFILLMENT_NODE_ID>/working-days' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "workingDays": ["FUNDAY"]
+  }'
+```
+
+Expected for both:
+
+* HTTP `400 Bad Request`
+* `code = INVALID_FULFILLMENT_NODE_WORKING_DAYS_REQUEST`
+
+## 11. Database Verification For Working Days
+
+First identify the local PostgreSQL container:
+
+```bash
+docker compose ps
+```
+
+Then query the normalized working-days table:
+
+```bash
+docker exec -e PGPASSWORD=fulfillment_password fulfillment-orchestrator-postgres \
+  psql -U fulfillment_user -d fulfillment_orchestrator \
+  -c "select fulfillment_node_id, day_of_week from fulfillment_node_working_days where fulfillment_node_id = '<FULFILLMENT_NODE_ID>'::uuid order by case day_of_week when 'MONDAY' then 1 when 'TUESDAY' then 2 when 'WEDNESDAY' then 3 when 'THURSDAY' then 4 when 'FRIDAY' then 5 when 'SATURDAY' then 6 when 'SUNDAY' then 7 end;"
+```
+
+Expected:
+
+* exactly three rows for `<FULFILLMENT_NODE_ID>`
+* rows for `MONDAY`, `FRIDAY`, and `SUNDAY`
+* rows returned in Monday-to-Sunday order when using the explicit `case` ordering above
+
+## 12. Create First Order -> CREATED
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders' \
@@ -94,7 +242,7 @@ Expected:
 
 Save the returned ID as `<ORDER_1_ID>`.
 
-## 4. Allocate First Order -> ALLOCATED
+## 13. Allocate First Order -> ALLOCATED
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders/<ORDER_1_ID>/allocate' \
@@ -110,7 +258,9 @@ Expected:
 * `status = ALLOCATED`
 * `assignedFulfillmentNodeId = <FULFILLMENT_NODE_ID>`
 
-## 5. Get First Order -> ALLOCATED
+Allocation still ignores configured working days in this milestone. `FOP-WORKING-DAYS-002` is the deferred task for enforcement.
+
+## 14. Get First Order -> ALLOCATED
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders/<ORDER_1_ID>'
@@ -122,7 +272,7 @@ Expected:
 * `status = ALLOCATED`
 * `assignedFulfillmentNodeId = <FULFILLMENT_NODE_ID>`
 
-## 6. Create Second Order -> CREATED
+## 15. Create Second Order -> CREATED
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders' \
@@ -139,7 +289,7 @@ Expected:
 
 Save the returned ID as `<ORDER_2_ID>`.
 
-## 7. Allocate Second Order to Full Node -> 409
+## 16. Allocate Second Order To Full Node -> 409
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders/<ORDER_2_ID>/allocate' \
@@ -154,7 +304,7 @@ Expected:
 * HTTP `409 Conflict`
 * `code = FULFILLMENT_NODE_CAPACITY_EXCEEDED`
 
-## 8. Ready to Ship -> READY_TO_SHIP
+## 17. Ready To Ship -> READY_TO_SHIP
 
 ```bash
 curl --location --request POST 'http://localhost:8080/api/v1/orders/<ORDER_1_ID>/ready-to-ship'
@@ -166,7 +316,7 @@ Expected:
 * `status = READY_TO_SHIP`
 * `assignedFulfillmentNodeId = <FULFILLMENT_NODE_ID>`
 
-## 9. Dispatch -> DISPATCHED
+## 18. Dispatch -> DISPATCHED
 
 ```bash
 curl --location --request POST 'http://localhost:8080/api/v1/orders/<ORDER_1_ID>/dispatch'
@@ -178,7 +328,7 @@ Expected:
 * `status = DISPATCHED`
 * `assignedFulfillmentNodeId = <FULFILLMENT_NODE_ID>`
 
-## 10. Deliver -> DELIVERED
+## 19. Deliver -> DELIVERED
 
 ```bash
 curl --location --request POST 'http://localhost:8080/api/v1/orders/<ORDER_1_ID>/deliver'
@@ -190,7 +340,7 @@ Expected:
 * `status = DELIVERED`
 * `assignedFulfillmentNodeId = <FULFILLMENT_NODE_ID>`
 
-## 11. Try Allocate Delivered Order Again -> 409
+## 20. Try Allocate Delivered Order Again -> 409
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders/<ORDER_1_ID>/allocate' \
@@ -205,7 +355,7 @@ Expected:
 * HTTP `409 Conflict`
 * `code = INVALID_ORDER_STATUS_TRANSITION`
 
-## 12. Create Third Order -> CREATED
+## 21. Create Third Order -> CREATED
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders' \
@@ -222,7 +372,7 @@ Expected:
 
 Save the returned ID as `<ORDER_3_ID>`.
 
-## 13. Allocate with Missing fulfillmentNodeId -> 400
+## 22. Allocate With Missing `fulfillmentNodeId` -> 400
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders/<ORDER_3_ID>/allocate' \
@@ -235,7 +385,7 @@ Expected:
 * HTTP `400 Bad Request`
 * `code = MISSING_FULFILLMENT_NODE_ID`
 
-## 14. Allocate with Invalid fulfillmentNodeId -> 400
+## 23. Allocate With Invalid `fulfillmentNodeId` -> 400
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders/<ORDER_3_ID>/allocate' \
@@ -250,7 +400,7 @@ Expected:
 * HTTP `400 Bad Request`
 * `code = INVALID_FULFILLMENT_NODE_ID`
 
-## 15. Create Fourth Order -> CREATED
+## 24. Create Fourth Order -> CREATED
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders' \
@@ -267,13 +417,13 @@ Expected:
 
 Save the returned ID as `<ORDER_4_ID>`.
 
-## 16. Allocate with Missing Fulfillment Node -> 404
+## 25. Allocate With Missing Fulfillment Node -> 404
 
 ```bash
 curl --location 'http://localhost:8080/api/v1/orders/<ORDER_4_ID>/allocate' \
   --header 'Content-Type: application/json' \
   --data '{
-    "fulfillmentNodeId": "22222222-2222-2222-2222-222222222222"
+    "fulfillmentNodeId": "55555555-5555-5555-5555-555555555555"
   }'
 ```
 
@@ -282,15 +432,7 @@ Expected:
 * HTTP `404 Not Found`
 * `code = FULFILLMENT_NODE_NOT_FOUND`
 
-## 17. Database Verification
-
-First identify the local PostgreSQL container:
-
-```bash
-docker compose ps
-```
-
-Then query the orders table:
+## 26. Database Verification For Orders
 
 ```bash
 docker exec -e PGPASSWORD=fulfillment_password fulfillment-orchestrator-postgres \
@@ -307,23 +449,21 @@ Expected:
 * `<ORDER_2_ID>`, `<ORDER_3_ID>`, and `<ORDER_4_ID>` have `fulfillment_node_id = null`
 * `<ORDER_2_ID>`, `<ORDER_3_ID>`, and `<ORDER_4_ID>` have `allocated_at = null`
 
-## 18. Optional Fulfillment Node Verification
+## Error Response Shapes
 
-```bash
-docker exec -e PGPASSWORD=fulfillment_password fulfillment-orchestrator-postgres \
-  psql -U fulfillment_user -d fulfillment_orchestrator \
-  -c "select id, code, max_daily_capacity, active from fulfillment_nodes where id = '<FULFILLMENT_NODE_ID>'::uuid;"
+Working-days validation errors use the structured API shape:
+
+```json
+{
+  "status": 400,
+  "code": "INVALID_FULFILLMENT_NODE_WORKING_DAYS_REQUEST",
+  "message": "workingDays must contain at least one valid day of week",
+  "path": "/api/v1/fulfillment-nodes/<FULFILLMENT_NODE_ID>/working-days",
+  "timestamp": "2026-07-30T12:00:00Z"
+}
 ```
 
-Expected:
-
-* `code = AR-BUE-CAP-<timestamp>`
-* `max_daily_capacity = 1`
-* `active = true`
-
-## Error Response Shape
-
-Capacity and lifecycle validation should return structured errors in this format:
+Capacity and lifecycle validation use the same shape:
 
 ```json
 {
@@ -331,6 +471,6 @@ Capacity and lifecycle validation should return structured errors in this format
   "code": "FULFILLMENT_NODE_CAPACITY_EXCEEDED",
   "message": "Fulfillment node daily capacity has been reached",
   "path": "/api/v1/orders/<ORDER_ID>/allocate",
-  "timestamp": "2026-07-14T12:00:00Z"
+  "timestamp": "2026-07-30T12:00:00Z"
 }
 ```
